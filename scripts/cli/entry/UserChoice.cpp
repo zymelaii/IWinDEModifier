@@ -6,7 +6,7 @@ extern "C" int cli_entry_UserChoice(int argc, wchar_t* argv[]) {
 	SYSTEMTIME				   timestamp{};
 	std::unique_ptr<wchar_t[]> UserName{}, UserSID{}, UserChoice{}, Hash{};
 	const wchar_t*			   FileExt = argc >= 2 ? argv[0] : L".txt";
-	const wchar_t*			   ProgId  = argc >= 2 ? argv[1] : L".IWinDEModifier.plain";
+	const wchar_t*			   ProgId  = argc >= 2 ? argv[1] : L"IWinDEModifier.plain";
 
 	GetSystemTime(&timestamp);
 

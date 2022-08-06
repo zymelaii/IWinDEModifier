@@ -1,8 +1,6 @@
 #include <iwindeapi/registry.h>
 #include <iostream>
 #include <memory>
-#include <stdint.h>
-#include <winnt.h>
 #include <winreg.h>
 
 template<typename T> T QueryRegistryItemInfo(HKEY item, RegInfo info) {

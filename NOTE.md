@@ -6,6 +6,7 @@
 	- first verb if order is specified
 	- Open
 	- OpenWith
+-  shell item of cascade menu stores in *\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell
 
 ## Brief
 
