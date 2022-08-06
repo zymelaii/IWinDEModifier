@@ -1,0 +1,13 @@
+*.exe
+*.dll
+*.lib
+*.a
+*.dlib
+*.o
+*.so
+
+build
+Data
+.cache
+
+__pycache__
