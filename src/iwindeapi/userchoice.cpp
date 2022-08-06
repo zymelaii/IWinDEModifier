@@ -116,6 +116,8 @@ auto GetCurrentUserName() -> std::optional<std::unique_ptr<wchar_t[]>> {
 
 	//! get size of user bytes
 	GetTokenInformation(processTokenHandle, TokenUser, nullptr, 0, &userSize);
+	
+
 
 	userBytes = std::make_unique<uint8_t[]>(userSize);
 	IWDEM_CheckOrReturn(

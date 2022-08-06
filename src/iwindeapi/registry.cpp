@@ -1,14 +1,5 @@
 #include "registry.h"
-
-#include <bcrypt.h>
 #include <memory>
-#include <sddl.h>
-#include <wincrypt.h>
-#include <winreg.h>
-#include <winternl.h>
-#include <accctrl.h>
-#include <aclapi.h>
-#include <winnt.h>
 
 auto CreateRegistryItem(HKEY parent, const wchar_t* item, REGSAM access) -> std::optional<HKEY> {
 	HKEY  key		  = nullptr;
@@ -42,12 +33,13 @@ bool CloseRegistryItem(HKEY item, bool flush) {
 }
 
 std::any QueryRegistryItemInfo(HKEY item, RegInfo info) {
+	wchar_t					   buffer[256]{};
 	std::unique_ptr<wchar_t[]> itemClass = nullptr;
-	DWORD					   values[8]{};
+	DWORD					   values[8]{256};
 	FILETIME				   lastWriteTime{};
 
 	RegQueryInfoKeyW(item,			  //!< item handle
-					 nullptr,		  //!< RegInfo::ItemClass
+					 buffer,		  //!< RegInfo::ItemClass
 					 &values[0],	  //!< RegInfo::ItemClassLen
 					 nullptr,		  //<! reserved
 					 &values[1],	  //!< RegInfo::SubItemNum
@@ -74,81 +66,67 @@ std::any QueryRegistryItemInfo(HKEY item, RegInfo info) {
 
 	DWORD szClass = values[0] + 1;
 	itemClass	  = std::make_unique<wchar_t[]>(szClass);
-	RegQueryInfoKeyW(item,
-					 itemClass.get(),
-					 &szClass,
-					 nullptr,
-					 nullptr,
-					 nullptr,
-					 nullptr,
-					 nullptr,
-					 nullptr,
-					 nullptr,
-					 nullptr,
-					 nullptr);
+	wcscpy_s(itemClass.get(), szClass, buffer);
+
 	return {itemClass.release()};
 }
 
-////////////////
+auto EnumRegistrySubItem(HKEY item, int index) -> std::optional<std::unique_ptr<wchar_t[]>> {
+	wchar_t					   buffer[256]{};
+	std::unique_ptr<wchar_t[]> name = nullptr;
+	DWORD					   size = 256;
 
-// auto EnumRegistrySubItem(HKEY hkey, DWORD index) -> std::optional<wchar_t*> {
-// 	DWORD count	 = 0;
-// 	DWORD maxlen = 0;
-// 	RegQueryInfoKeyW(hkey,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 &count,
-// 					 &maxlen,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr);
-// 	if (index >= count) {
-// 		return std::nullopt;
-// 	}
-// 	maxlen += 1;
-// 	auto keyname = std::make_unique<wchar_t[]>(maxlen);
-// 	auto result =
-// 		RegEnumKeyExW(hkey, index, keyname.get(), &maxlen, nullptr, nullptr, nullptr, nullptr);
-// 	if (result == ERROR_SUCCESS) {
-// 		return keyname.release();
-// 	} else {
-// 		return std::nullopt;
-// 	}
-// }
+	IWDEM_CheckOrReturn(
+		ERROR_SUCCESS ==
+			RegEnumKeyExW(item, index, buffer, &size, nullptr, nullptr, nullptr, nullptr),
+		std::nullopt);
 
-// auto EnumRegistryValue(HKEY hkey, DWORD index)
-// 	-> std::optional<std::tuple<wchar_t*, uint8_t*, size_t, DWORD>> {
-// 	DWORD count		  = 0;
-// 	DWORD maxlen_name = 0;
-// 	DWORD maxlen_data = 0;
-// 	DWORD value_type  = REG_NONE;
-// 	RegQueryInfoKeyW(hkey,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 nullptr,
-// 					 &count,
-// 					 &maxlen_name,
-// 					 &maxlen_data,
-// 					 nullptr,
-// 					 nullptr);
-// 	if (index >= count) {
-// 		return std::nullopt;
-// 	}
-// 	maxlen_name += 1;
-// 	auto name	= std::make_unique<wchar_t[]>(maxlen_name);
-// 	auto data	= std::make_unique<uint8_t[]>(maxlen_data);
-// 	auto result = RegEnumValueW(
-// 		hkey, index, name.get(), &maxlen_name, nullptr, &value_type, data.get(), &maxlen_data);
-// 	if (result == ERROR_SUCCESS) {
-// 		return {{name.release(), data.release(), maxlen_data, value_type}};
-// 	} else {
-// 		return std::nullopt;
-// 	}
-// }
+	size += 1;
+	name = std::make_unique<wchar_t[]>(size);
+	wcscpy_s(name.get(), size, buffer);
+
+	return {std::move(name)};
+}
+
+auto EnumRegistryKey(HKEY item, int index) -> std::optional<std::unique_ptr<wchar_t[]>> {
+	wchar_t					   buffer[256]{};
+	std::unique_ptr<wchar_t[]> name = nullptr;
+	DWORD					   size = 256;
+
+	IWDEM_CheckOrReturn(
+		ERROR_SUCCESS ==
+			RegEnumValueW(item, index, buffer, &size, nullptr, nullptr, nullptr, nullptr),
+		std::nullopt);
+
+	size += 1;
+	name = std::make_unique<wchar_t[]>(size);
+	wcscpy_s(name.get(), size, buffer);
+
+	return {std::move(name)};
+}
+
+auto GetRegistryValue(HKEY item, const wchar_t* key,
+					  std::optional<std::reference_wrapper<std::unique_ptr<uint8_t[]>>> bytes)
+	-> std::tuple<bool, uint8_t, size_t> {
+	DWORD type = REG_NONE;
+	DWORD size = 0;
+
+	IWDEM_CheckOrReturn(
+		ERROR_SUCCESS == RegGetValueW(item, nullptr, key, RRF_RT_ANY, &type, nullptr, &size),
+		std::make_tuple(false, 0, 0));
+
+	if (bytes.has_value()) {
+		auto& data = bytes.value().get();
+		if (data.get() == nullptr) {
+			data = std::make_unique<uint8_t[]>(size);
+		} else {
+			//! buffer size must be strictly greater than size if it is manually specified
+		}
+
+		//! a value acquisition failure doesn't abandon type and size info
+		IWDEM_CheckOrReturn(
+			ERROR_SUCCESS == RegGetValueW(item, nullptr, key, RRF_RT_ANY, &type, data.get(), &size),
+			std::make_tuple(false, type, size));
+	}
+	return {true, type, size};
+}

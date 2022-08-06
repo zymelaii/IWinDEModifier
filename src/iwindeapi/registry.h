@@ -1,6 +1,6 @@
 #include "internal.h"
-#include <any>
-#include <optional>
+#include <functional>
+#include <memory>
 #include <winreg.h>
 
 enum class RegInfo {
@@ -54,7 +54,37 @@ bool CloseRegistryItem(HKEY item, bool flush = false);
  */
 std::any QueryRegistryItemInfo(HKEY item, RegInfo info);
 
-// std::optional<wchar_t*> EnumRegistrySubItem(HKEY item, int index);
+/*!
+ * \brief enum subitem of target item
+ *
+ * \param item target item handle
+ * \param index index of subitem
+ *
+ * \note get number of subitems via QueryRegistryItemInfo
+ */
+std::optional<std::unique_ptr<wchar_t[]>> EnumRegistrySubItem(HKEY item, int index);
 
-// std::optional<std::tuple<wchar_t*, uint8_t*, size_t, DWORD>> EnumRegistryValue(HKEY	 item,
-// 																			   DWORD index);
+/*!
+ * \brief enum key of target item
+ *
+ * \param item target item handle
+ * \param index index of key
+ *
+ * \note get number of key via QueryRegistryItemInfo
+ */
+std::optional<std::unique_ptr<wchar_t[]>> EnumRegistryKey(HKEY item, int index);
+
+/*!
+ * \brief get registry key value
+ *
+ * \param item target item handle
+ * \param key key of target value
+ * \param bytes buffer to receive key value, notice that nullopt indicates query-only-action.
+ * if bytes contains no buffer then it will be assigned automaticly, otherwise data will be directly
+ * wrote to bytes
+ *
+ * \return triple of exec result, type of key and value size (in bytes)
+ */
+std::tuple<bool, uint8_t, size_t> GetRegistryValue(
+	HKEY item, const wchar_t* key,
+	std::optional<std::reference_wrapper<std::unique_ptr<uint8_t[]>>> bytes = std::nullopt);
