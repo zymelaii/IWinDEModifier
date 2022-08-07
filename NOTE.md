@@ -114,8 +114,8 @@ MUIVerb: <plain>
 FriendlyTypeName: @<path>,-<resID>
 FriendlyTypeName: <plain>
 
-AlwaysShowExt: <boolean>
-	- <boolean> -> Optional{0, 1}
+AlwaysShowExt:
+NeverShowExt:
 
 DefaultIcon: <path>,-<resID>
 ```

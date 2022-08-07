@@ -1,7 +1,5 @@
 #include <iwindeapi/registry.h>
 #include <iostream>
-#include <memory>
-#include <winreg.h>
 
 template<typename T> T QueryRegistryItemInfo(HKEY item, RegInfo info) {
 	return {std::any_cast<T>(QueryRegistryItemInfo(item, info))};
@@ -21,38 +19,43 @@ bool QueryCommandFlags(int& argc, wchar_t* argv[], Flags... flags) {
 	return found;
 }
 
-int ListItemRecursive(HKEY item, bool show_keys = true, int depth = 0, int indent = 0) {
-	IWDEM_CheckOrReturn(depth >= 0, 0);
+int ListItemRecursive(HKEY item, bool show_keys = true, bool value_only = false, int depth = 0,
+					  int indent = 0) {
 	auto nSubItem = QueryRegistryItemInfo<size_t>(item, RegInfo::SubItemNum);
-	for (int i = 0; i < nSubItem; ++i) {
-		auto SubItemName = std::move(EnumRegistrySubItem(item, i).value_or(nullptr));
-		IWDEM_CheckOrReturn(SubItemName.get() != nullptr, 1);
-		auto SubItem = OpenRegistryItem(item, SubItemName.get(), KEY_READ).value_or(nullptr);
-		IWDEM_CheckOrReturn(SubItem != nullptr, 2);
-		auto nKeyOfSubItem = QueryRegistryItemInfo<size_t>(SubItem, RegInfo::KeyNum);
-		wprintf(L"%*S%S\n", indent * 2, L"", SubItemName.get());
-		if (show_keys) {
-			for (int j = 0; j < nKeyOfSubItem; ++j) {
-				auto KeyName = std::move(EnumRegistryKey(SubItem, j).value_or(nullptr));
-				IWDEM_CheckOrReturn(KeyName.get() != nullptr, 3);
 
-				std::unique_ptr<uint8_t[]> ValueBytes = nullptr;
-				auto [success, KeyType, ValueSize] =
-					GetRegistryValue(SubItem, KeyName.get(), ValueBytes);
-				IWDEM_CheckOrReturn(success, 4);
+	if (show_keys | value_only) {
+		auto nKey = QueryRegistryItemInfo<size_t>(item, RegInfo::KeyNum);
+		for (int j = 0; j < nKey; ++j) {
+			auto KeyName = std::move(EnumRegistryKey(item, j).value_or(nullptr));
+			IWDEM_CheckOrReturn(KeyName.get() != nullptr, 1);
 
-				wprintf(L"%*S- %S%S%S\n",
-						(indent + 1) * 2,
-						L"",
-						KeyName.get()[0] == 0 ? L"(Default)" : KeyName.get(),
-						KeyType == REG_SZ || KeyType == REG_EXPAND_SZ ? L": " : L"",
-						KeyType == REG_SZ || KeyType == REG_EXPAND_SZ
-							? reinterpret_cast<wchar_t*>(ValueBytes.get())
-							: L"");
-			}
+			std::unique_ptr<uint8_t[]> ValueBytes = nullptr;
+			auto [success, KeyType, ValueSize] = GetRegistryValue(item, KeyName.get(), ValueBytes);
+			IWDEM_CheckOrReturn(success, 2);
+
+			wprintf(L"%*S- %S%S%S\n",
+					indent * 2,
+					L"",
+					KeyName.get()[0] == 0 ? L"(Default)" : KeyName.get(),
+					KeyType == REG_SZ || KeyType == REG_EXPAND_SZ ? L": " : L"",
+					KeyType == REG_SZ || KeyType == REG_EXPAND_SZ
+						? reinterpret_cast<wchar_t*>(ValueBytes.get())
+						: L"");
 		}
-		ListItemRecursive(SubItem, show_keys, depth - 1, indent + 1);
-		CloseRegistryItem(SubItem);
+	}
+
+	IWDEM_CheckOrReturn(depth >= 0, 0);
+
+	if (!value_only) {
+		for (int i = 0; i < nSubItem; ++i) {
+			auto SubItemName = std::move(EnumRegistrySubItem(item, i).value_or(nullptr));
+			IWDEM_CheckOrReturn(SubItemName.get() != nullptr, 3);
+			auto SubItem = OpenRegistryItem(item, SubItemName.get(), KEY_READ).value_or(nullptr);
+			IWDEM_CheckOrReturn(SubItem != nullptr, 4);
+			wprintf(L"%*S+ %S\n", indent * 2, L"", SubItemName.get());
+			ListItemRecursive(SubItem, show_keys, value_only, depth - 1, indent + 1);
+			CloseRegistryItem(SubItem);
+		}
 	}
 	return 0;
 }
@@ -73,9 +76,7 @@ extern "C" int cli_entry_regkey_query(int argc, wchar_t* argv[]) {
 			item = opt.value();
 		} else {
 			if (!silent) {
-				wprintf(LR"(invalid registry path "HKEY_CURRENT_USER\%S")"
-						L"\n",
-						path);
+				wprintf(L"invalid registry path \"HKEY_CURRENT_USER\\%S\"\n", path);
 			}
 			if (halt_on_error) {
 				return 1;
@@ -109,11 +110,22 @@ Security Descriptor Size: %lubytes
 }
 
 extern "C" int cli_entry_regkey_list(int argc, wchar_t* argv[]) {
-	bool show_keys = QueryCommandFlags(argc, argv, L"-k", L"--show-keys");
+	bool value_only = QueryCommandFlags(argc, argv, L"-V", L"--value-only");
+	bool show_keys	= QueryCommandFlags(argc, argv, L"-k", L"--show-keys");
+	bool global		= QueryCommandFlags(argc, argv, L"-g", L"--global");
+	HKEY item		= nullptr;
+	HKEY root		= global ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
+	auto sroot		= global ? L"HKEY_LOCAL_MACHINE" : L"HKEY_CURRENT_USER";
 
-	HKEY item = OpenRegistryItem(HKEY_CURRENT_USER, nullptr).value_or(nullptr);
-	ListItemRecursive(item, show_keys);
-	CloseRegistryItem(item);
+	for (int i = 0; i < argc; ++i) {
+		if (argv[i][0] == 0) continue;
+		if (auto opt = OpenRegistryItem(root, argv[i], KEY_READ); opt.has_value()) {
+			item = opt.value();
+			wprintf(L"[%S\\%S]\n", sroot, argv[i]);
+			ListItemRecursive(item, show_keys, value_only);
+			CloseRegistryItem(item);
+		}
+	}
 
 	return 0;
 }

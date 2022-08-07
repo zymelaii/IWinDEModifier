@@ -12,7 +12,6 @@ int cli_entry_flush(int, wchar_t*[]);
 };
 
 int main(int argc, char* argv[]) {
-	wchar_t** wargv = nullptr;
 	std::map<std::string_view, cliapi> entries{
 		{"UserChoice", cli_entry_UserChoice},
 		{"regkey", cli_entry_regkey},
@@ -24,6 +23,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
+	wchar_t** wargv = nullptr;
 	argc -= 2;
 
 	if (argc > 0) {
