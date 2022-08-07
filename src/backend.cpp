@@ -195,7 +195,11 @@ void ImGuiApplication::configure() {
 	ImGui::StyleColorsLight();
 }
 
-void ImGuiApplication::prepare() {}
+void ImGuiApplication::prepare() {
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+}
 
 void ImGuiApplication::present() {
 	ImGui::Render();

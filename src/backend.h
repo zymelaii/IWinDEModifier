@@ -34,7 +34,7 @@ protected:
 	HINSTANCE instance_;
 	char clsname_[256];
 	int	 errno_;
-private:
+protected:
 	ID3D11Device*			pd3dDevice_;
 	ID3D11DeviceContext*	pd3dDeviceContext_;
 	IDXGISwapChain*			pSwapChain_;

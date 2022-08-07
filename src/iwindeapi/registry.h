@@ -40,7 +40,7 @@ std::optional<HKEY> OpenRegistryItem(HKEY parent, const wchar_t* item,
 /*!
  * \brief close registry item
  *
- * \param item target item handle
+ * \param item handle of target item
  * \param flush flush registry cache to the hard disk, ensure the item has KEY_QUERY_VALUE access if
  * flush flag is manually specified
  */
@@ -49,7 +49,7 @@ bool CloseRegistryItem(HKEY item, bool flush = false);
 /*!
  * \brief query registry item info
  *
- * \param item target item handle
+ * \param item handle of target item
  * \param info info type to query
  */
 std::any QueryRegistryItemInfo(HKEY item, RegInfo info);
@@ -57,7 +57,7 @@ std::any QueryRegistryItemInfo(HKEY item, RegInfo info);
 /*!
  * \brief enum subitem of target item
  *
- * \param item target item handle
+ * \param item handle of target item
  * \param index index of subitem
  *
  * \note get number of subitems via QueryRegistryItemInfo
@@ -67,7 +67,7 @@ std::optional<std::unique_ptr<wchar_t[]>> EnumRegistrySubItem(HKEY item, int ind
 /*!
  * \brief enum key of target item
  *
- * \param item target item handle
+ * \param item handle of target item
  * \param index index of key
  *
  * \note get number of key via QueryRegistryItemInfo
@@ -77,7 +77,7 @@ std::optional<std::unique_ptr<wchar_t[]>> EnumRegistryKey(HKEY item, int index);
 /*!
  * \brief get registry key value
  *
- * \param item target item handle
+ * \param item handle of target item
  * \param key key of target value
  * \param bytes buffer to receive key value, notice that nullopt indicates query-only-action.
  * if bytes contains no buffer then it will be assigned automaticly, otherwise data will be directly

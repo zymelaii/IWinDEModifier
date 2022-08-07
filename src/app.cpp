@@ -1,158 +1,202 @@
 #include "backend.h"
-#include "imgui/imgui.h"
 #include <memory>
-#include <stdio.h>
-#include <time.h>
+#include <map>
+#include <string_view>
+#include <iostream>
 
 class IWinDEModifierApp : public ImGuiApplication {
-public:
-	IWinDEModifierApp(const char* title, int width, int height)
-		: ImGuiApplication(title, width, height) {}
+private:   //!< Configuration
+	//! flags
+	std::map<std::string_view, bool> flags{};
+	bool							 open_MainMenuBar = false;
+	bool							 open_About		  = false;
+	bool							 open_Explorer	  = false;
+	//! status
+	int	   RegEntrySelectionId = -1;
+	ImVec2 size_MainMenuBar{0, 0};
+	ImVec2 size_Explorer{0, 0};
+	//! config
+	const SIZE WindowsMinTrack{640, 400};
+	const struct {
+		const char* entry;
+		int			id;
+	} RegistryEntries[5]{
+		{"HKEY_ROOT_CLASS", 0},
+		{"HKEY_CURRENT_USER", 1},
+		{"HKEY_LOCAL_MACHINE", 2},
+		{"HKEY_USERS", 3},
+		{"HKEY_CURRENT_CONFIG", 4},
+	};
 
-	void configure() override {
-		ImGuiApplication::configure();
-		ImGui::GetIO().Fonts->AddFontFromFileTTF(
-			R"(E:\DesktopMap\dev\IWinDEModifier\assets\DroidSans.ttf)", 16.0f);
+public:	  //!< Components
+	bool ShowMainMenuBar() {
+		if (!ImGui::BeginMainMenuBar()) return false;
+
+		if (ImGui::BeginMenu("File(F)")) {
+			if (ImGui::MenuItem("New", "Ctrl+N")) {}
+			if (ImGui::MenuItem("Open", "Ctrl+O")) {}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Save", "Ctrl+S")) {}
+			if (ImGui::MenuItem("SaveAs...", "Ctrl+Shift+S")) {}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Edit(E)")) {
+			if (ImGui::MenuItem("Undo", "Ctrl+Z")) {}
+			if (ImGui::MenuItem("Redo", "Ctrl+Y")) {}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Cut", "Ctrl+X")) {}
+			if (ImGui::MenuItem("Copy", "Ctrl+C")) {}
+			if (ImGui::MenuItem("Paste", "Ctrl+V")) {}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Search", "Ctrl+F")) {}
+			if (ImGui::MenuItem("Replace", "Ctrl+H")) {}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("View(V)")) {
+			ImGui::Checkbox("Toggle Sidebar", &open_Explorer);
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Help(H)")) {
+			if (ImGui::MenuItem("About")) {
+				open_About = true;
+			}
+			ImGui::EndMenu();
+		}
+
+		size_MainMenuBar = ImGui::GetWindowSize();
+		ImGui::EndMainMenuBar();
+
+		return true;
 	}
 
-	void render() override {
-		ImGuiIO&	   io			 = ImGui::GetIO();
-		static bool	   show_leftpane = false;
-		static clock_t timestamp	 = -1;
-		static bool	   show_about	 = false;
-		static ImVec2  szmenu{0, 0};
-		static ImVec2  szleftpane{0, 0};
+	void ShowAbout() {
+		ImGui::SetNextWindowFocus();
+		auto flag = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar |
+					ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		ImGui::Begin("About", &open_About, flag);
+		ImGui::TextColored(ImVec4(0.00f, 0.47f, 0.84f, 1.00f), "IWinDEModifier");
+		ImGui::Separator();
+		ImGui::BulletText("Version: %d.%d.%d", 0, 1, 3);
+		ImGui::BulletText("Author: %s", "zymelaii");
+		ImGui::End();
+	}
 
-		RECT client{};
-		GetClientRect(hwnd_, &client);
-		int width  = client.right;
-		int height = client.bottom;
-
-		if (io.KeyCtrl && io.KeyAlt && io.KeysDown['B']) {
-			if (timestamp == -1) {
-				timestamp = static_cast<clock_t>(clock() * 1000.0 / CLOCKS_PER_SEC);
-			}
+	void ShowExplorer() {
+		auto flag = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
+					ImGuiWindowFlags_NoBringToFrontOnFocus;
+		auto client = ImGui::GetIO().DisplaySize;
+		auto offset = open_MainMenuBar ? size_MainMenuBar.y : 0;
+		if (flags["OnExplorerInit"]) {
+			size_Explorer.x			= 200;
+			flags["OnExplorerInit"] = false;
 		}
-		if (!(io.KeyCtrl && io.KeyAlt && io.KeysDown['B']) && timestamp != -1) {
-			auto now = static_cast<clock_t>(clock() * 1000.0 / CLOCKS_PER_SEC);
-			if (now - timestamp > 10) {
-				show_leftpane = !show_leftpane;
-			}
-			timestamp = -1;
-		}
-
-		ImGui_ImplDX11_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-
-		ImGui::GetCurrentContext()->NavWindowingToggleLayer = true;
-
-		//! Application Render Program
-		if (ImGui::BeginMainMenuBar()) {
-			if (ImGui::BeginMenu("File(F)")) {
-				if (ImGui::MenuItem("New", "Ctrl+N")) {}
-				if (ImGui::MenuItem("Open", "Ctrl+O")) {}
-				ImGui::Separator();
-				if (ImGui::MenuItem("Save", "Ctrl+S")) {}
-				if (ImGui::MenuItem("SaveAs...", "Ctrl+Shift+S")) {}
-				ImGui::EndMenu();
-			}
-			if (ImGui::BeginMenu("Edit(E)")) {
-				if (ImGui::MenuItem("Undo", "Ctrl+Z")) {}
-				if (ImGui::MenuItem("Redo", "Ctrl+Y")) {}
-				ImGui::Separator();
-				if (ImGui::MenuItem("Cut", "Ctrl+X")) {}
-				if (ImGui::MenuItem("Copy", "Ctrl+C")) {}
-				if (ImGui::MenuItem("Paste", "Ctrl+V")) {}
-				ImGui::Separator();
-				if (ImGui::MenuItem("Search", "Ctrl+F")) {}
-				if (ImGui::MenuItem("Replace", "Ctrl+H")) {}
-				ImGui::EndMenu();
-			}
-			if (ImGui::BeginMenu("View(V)")) {
-				ImGui::Checkbox("Toggle Sidebar", &show_leftpane);
-				ImGui::EndMenu();
-			}
-			if (ImGui::BeginMenu("Help(H)")) {
-				if (ImGui::MenuItem("About")) {
-					show_about = true;
-				}
-				ImGui::EndMenu();
-			}
-			szmenu = ImGui::GetWindowSize();
-			ImGui::EndMainMenuBar();
-		}
-
-		if (show_about) {
-			ImGui::SetNextWindowFocus();
-			ImGui::Begin("About",
-						 &show_about,
-						 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar |
-							 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
-
-			ImGui::TextColored(ImVec4(0.00f, 0.47f, 0.84f, 1.00f), "IWinDEModifier");
-			ImGui::Separator();
-			ImGui::BulletText("Version: %d.%d.%d", 0, 1, 3);
-			ImGui::BulletText("Author: %s", "zymelaii");
-
-			ImGui::End();
-		}
-
-		if (show_leftpane) {
-			static int reg_root_id = 0;
-			if (szleftpane.y == 0) {
-				szleftpane.x = 160;
-				ImGui::SetNextWindowSize(szleftpane);
-			}
-			szleftpane.y = height - szmenu.y;
-			ImGui::SetNextWindowBgAlpha(0.6);
-			ImGui::SetNextWindowPos(ImVec2(0, szmenu.y));
-			ImGui::SetNextWindowSizeConstraints(ImVec2(100, szleftpane.y),
-												ImVec2(240, szleftpane.y));
-			ImGui::Begin("Side Pane", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove);
-			szleftpane = ImGui::GetWindowSize();
-			ImGui::Text("Explorer");
-			ImGui::Separator();
-			if (ImGui::CollapsingHeader("Registry", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Indent(12.00f);
-				if (ImGui::RadioButton("HKEY_ROOT_CLASS", reg_root_id == 0)) {
-					reg_root_id = 0;
-				}
-				if (ImGui::RadioButton("HKEY_CURRENT_USER", reg_root_id == 1)) {
-					reg_root_id = 1;
-				}
-				if (ImGui::RadioButton("HKEY_LOCAL_MACHINE", reg_root_id == 2)) {
-					reg_root_id = 2;
-				}
-				if (ImGui::RadioButton("HKEY_USERS", reg_root_id == 3)) {
-					reg_root_id = 3;
-				}
-				if (ImGui::RadioButton("HKEY_CURRENT_CONFIG", reg_root_id == 4)) {
-					reg_root_id = 4;
-				}
-				ImGui::Unindent();
-			}
-			ImGui::End();
-		}
-
-		ImGui::SetNextWindowSize(
-			ImVec2(width - (show_leftpane ? szleftpane.x : 0), height - szmenu.y));
-		ImGui::SetNextWindowPos(ImVec2(show_leftpane ? szleftpane.x : 0, szmenu.y));
+		size_Explorer.y = client.y - offset;
+		ImGui::SetNextWindowSize(size_Explorer);
 		ImGui::SetNextWindowBgAlpha(0.6);
-		ImGui::Begin(
-			"Default Menu",
-			NULL,
-			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+		ImGui::SetNextWindowSizeConstraints(ImVec2(100, client.y), ImVec2(320, client.y));
+		ImGui::SetNextWindowPos(ImVec2(0, offset));
+		ImGui::Begin("Explorer", &open_Explorer, flag);
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetFontSize() * 0.5);
+		ImGui::Text("Explorer");
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Registry", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::Indent(12.00f);
+			for (auto [entry, id] : RegistryEntries) {
+				if (auto active = RegEntrySelectionId == id; ImGui::RadioButton(entry, active)) {
+					RegEntrySelectionId = active ? -1 : id;
+				}
+			}
+			ImGui::Unindent();
+		}
+		size_Explorer = ImGui::GetWindowSize();
+		ImGui::PopStyleVar();
+		ImGui::End();
+	}
 
+	void ShowMainView() {
+		auto flag = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
+					ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBringToFrontOnFocus;
+		ImVec2 size = ImGui::GetIO().DisplaySize;
+		ImVec2 pos{0, 0};
+		if (open_Explorer) {
+			size.x = size.x - size_Explorer.x;
+			pos.x  = size_Explorer.x;
+		}
+		if (open_MainMenuBar) {
+			pos.y += size_MainMenuBar.y;
+		}
+		ImGui::SetNextWindowPos(pos);
+		ImGui::SetNextWindowSize(size);
+		ImGui::SetNextWindowBgAlpha(0.6);
+
+		ImGui::Begin("MainView", NULL, flag);
 		if (ImGui::IsWindowHovered()) {
 			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 			ImGui::SameLine();
 		}
 		ImGui::Text("Hello World!");
-
 		ImGui::ColorEdit3("Backgound Color", reinterpret_cast<float*>(&this->backgroundColor));
-
+		float color = 0;
 		ImGui::End();
+	}
+
+public:	  //!< Main Program
+	IWinDEModifierApp(const char* title, int width, int height)
+		: ImGuiApplication(title, width, height) {}
+
+	std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam) override {
+		if (msg == WM_GETMINMAXINFO) {
+			MINMAXINFO* info = reinterpret_cast<MINMAXINFO*>(lParam);
+			RECT		window, client;
+			GetWindowRect(hwnd_, &window);
+			GetClientRect(hwnd_, &client);
+			SIZE nc{window.right - window.left - client.right,
+					window.bottom - window.top - client.bottom};
+			info->ptMinTrackSize.x = WindowsMinTrack.cx + nc.cx;
+			info->ptMinTrackSize.y = WindowsMinTrack.cy + nc.cy;
+		}
+		return std::nullopt;
+	}
+
+	void configure() override {
+		ImGuiApplication::configure();
+		flags["FirstToggleExplorer"] = false;
+		flags["OnExplorerInit"]		 = true;
+		ImGui::GetIO().Fonts->AddFontFromFileTTF(R"(..\assets\DroidSans.ttf)", 16.0f);
+	}
+
+	void prepare() override {
+		ImGuiApplication::prepare();
+		ImGuiIO& io = ImGui::GetIO();
+		if (auto key = ImGui::GetKeyData('B'); key->Down && io.KeyAlt && io.KeyCtrl) {
+			if (!flags["FirstToggleExplorer"]) {
+				open_Explorer				 = !open_Explorer;
+				flags["FirstToggleExplorer"] = true;
+			} else if (key->DownDuration > 0.6) {
+				auto n = static_cast<int>((key->DownDuration - 0.6) / 0.1);
+				if (fabs(key->DownDuration - 0.6 - n * 0.1) < 0.03) {
+					open_Explorer = !open_Explorer;
+				}
+			}
+		} else {
+			flags["FirstToggleExplorer"] = false;
+		}
+	}
+
+	void render() override {
+		open_MainMenuBar = ShowMainMenuBar();
+
+		if (open_About) {
+			ShowAbout();
+		}
+
+		if (open_Explorer) {
+			ShowExplorer();
+		}
+
+		ShowMainView();
 	}
 };
 
