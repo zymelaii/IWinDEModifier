@@ -1,4 +1,7 @@
 #include "backend.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
+#include <algorithm>
 #include <memory>
 #include <map>
 #include <string_view>
@@ -16,7 +19,8 @@ private:   //!< Configuration
 	ImVec2 size_MainMenuBar{0, 0};
 	ImVec2 size_Explorer{0, 0};
 	//! config
-	const SIZE WindowsMinTrack{640, 400};
+	const SIZE	WindowsMinTrack{640, 400};
+	const float InitialExplorerWidth = 200;
 	const struct {
 		const char* entry;
 		int			id;
@@ -27,8 +31,26 @@ private:   //!< Configuration
 		{"HKEY_USERS", 3},
 		{"HKEY_CURRENT_CONFIG", 4},
 	};
+	//! resource
+	ID3D11ShaderResourceView* texture_Background = nullptr;
+	ImVec2					  size_Background{};
 
 public:	  //!< Components
+	void ShowBackground() {
+		auto flag = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoFocusOnAppearing |
+					ImGuiWindowFlags_NoBringToFrontOnFocus;
+		ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowBgAlpha(0);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+		ImGui::Begin("Background", nullptr, flag);
+		ImGui::GetCurrentWindow()->BeginOrderWithinContext = -648;
+		ImGui::Image(texture_Background, ImGui::GetContentRegionAvail());
+		ImGui::End();
+		ImGui::PopStyleVar(2);
+	}
+
 	bool ShowMainMenuBar() {
 		if (!ImGui::BeginMainMenuBar()) return false;
 
@@ -89,12 +111,12 @@ public:	  //!< Components
 		auto client = ImGui::GetIO().DisplaySize;
 		auto offset = open_MainMenuBar ? size_MainMenuBar.y : 0;
 		if (flags["OnExplorerInit"]) {
-			size_Explorer.x			= 200;
+			size_Explorer.x			= InitialExplorerWidth;
 			flags["OnExplorerInit"] = false;
 		}
 		size_Explorer.y = client.y - offset;
 		ImGui::SetNextWindowSize(size_Explorer);
-		ImGui::SetNextWindowBgAlpha(0.6);
+		ImGui::SetNextWindowBgAlpha(0.72);
 		ImGui::SetNextWindowSizeConstraints(ImVec2(100, client.y), ImVec2(320, client.y));
 		ImGui::SetNextWindowPos(ImVec2(0, offset));
 		ImGui::Begin("Explorer", &open_Explorer, flag);
@@ -129,7 +151,7 @@ public:	  //!< Components
 		}
 		ImGui::SetNextWindowPos(pos);
 		ImGui::SetNextWindowSize(size);
-		ImGui::SetNextWindowBgAlpha(0.6);
+		ImGui::SetNextWindowBgAlpha(0.88);
 
 		ImGui::Begin("MainView", NULL, flag);
 		if (ImGui::IsWindowHovered()) {
@@ -162,9 +184,10 @@ public:	  //!< Main Program
 
 	void configure() override {
 		ImGuiApplication::configure();
-		flags["FirstToggleExplorer"] = false;
-		flags["OnExplorerInit"]		 = true;
+		flags["FirstToggleExplorer"]		= false;
+		flags["OnExplorerInit"]				= true;
 		ImGui::GetIO().Fonts->AddFontFromFileTTF(R"(..\assets\DroidSans.ttf)", 16.0f);
+		LoadTextureFromFile(pd3dDevice_, R"(..\assets\image.png)", &texture_Background, &size_Background);
 	}
 
 	void prepare() override {
@@ -183,19 +206,23 @@ public:	  //!< Main Program
 		} else {
 			flags["FirstToggleExplorer"] = false;
 		}
+
+		auto& windows = ImGui::GetCurrentContext()->Windows;
+		std::sort(
+			windows.begin(), windows.end(), [](const ImGuiWindow* lhs, const ImGuiWindow* rhs) {
+				return lhs->BeginOrderWithinContext < rhs->BeginOrderWithinContext;
+			});
 	}
 
 	void render() override {
+		ShowBackground();
 		open_MainMenuBar = ShowMainMenuBar();
-
 		if (open_About) {
 			ShowAbout();
 		}
-
 		if (open_Explorer) {
 			ShowExplorer();
 		}
-
 		ShowMainView();
 	}
 };
