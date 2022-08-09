@@ -34,7 +34,8 @@ private:   //!< Configuration
 	char					 FilterRegexBuffer[256]{};
 	size_t					 nEmptyKey = 0;
 	ImVec2					 size_MainMenuBar{0, 0};
-	ImVec2					 size_Explorer{0, 0};
+	ImVec2					 size_Explorer{100, 0};
+	ImVec2					 size_ExplorerMinTrack{0, 0};
 	ImFont*					 FontClear = nullptr;
 	ImFont*					 FontSmall = nullptr;
 	//! config
@@ -129,10 +130,10 @@ public:	  //!< Components
 		if (ImGui::Selectable(
 				"General", CurrentSettingsOn == 0, ImGuiSelectableFlags_AllowDoubleClick)) {
 			if (ImGui::GetIO().MouseClickedCount[0] == 2) {	  //! left button double click
-															  // TODO
-			}
-			if (CurrentSettingsOn == 0) {
-				CurrentSettingsOn = -1;
+				CurrentSettingsOn = 0;
+				// TODO
+			} else {
+				CurrentSettingsOn = CurrentSettingsOn == 0 ? -1 : 0;
 			}
 		}
 		ImGui::EndChild();
@@ -183,12 +184,16 @@ public:	  //!< Components
 		size_Explorer.y = client.y - offset;
 		ImGui::SetNextWindowSize(size_Explorer);
 		ImGui::SetNextWindowBgAlpha(0.72);
-		ImGui::SetNextWindowSizeConstraints(ImVec2(100, client.y), ImVec2(320, client.y));
+		ImGui::SetNextWindowSizeConstraints(
+			ImVec2(size_ExplorerMinTrack.x + ImGui::GetStyle().WindowPadding.x * 2,
+				   client.y),
+			ImVec2(320, client.y));
 		ImGui::SetNextWindowPos(ImVec2(0, offset));
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetFontSize() * 0.5);
 
 		ImGui::Begin("Explorer", &open_Explorer, flag);
-		if (ImGui::Switch("RegsitryScopeSwitch", "Private", "Public", &HandlePublicRegistry)) {
+		if (ImGui::Switch(
+				"#RegsitryScopeSwitch", "Explorer", "Private", "Public", &HandlePublicRegistry)) {
 			RegistryScopeChanged = true;
 		}
 		size_Explorer = ImGui::GetWindowSize();
@@ -250,17 +255,17 @@ public:	  //!< Components
 			size.y -= ImGui::GetFontSize() + StatusBarPadding.y * 2;   //!< for status bar
 		}
 
-		// if (!FileExts.empty()) {
-		// 	auto height = ImGui::GetFontSize() * 1.6 + StatusBarPadding.y * 2;
-		// 	ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y - height));
-		// 	ImGui::SetNextWindowSize(ImVec2(size.x, height));
-		// 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-		// 	ImGui::Begin("ResultFilter", nullptr, flag);
-		// 	ImGui::InputTextWithHint(
-		// 		"filter", "input text filter regex", FilterRegexBuffer, sizeof(FilterRegexBuffer));
-		// 	ImGui::End();
-		// 	ImGui::PopStyleVar();
-		// }
+		if (!FileExts.empty()) {
+			auto height = ImGui::GetFontSize() * 1.6 + StatusBarPadding.y * 2;
+			ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y - height));
+			ImGui::SetNextWindowSize(ImVec2(size.x, height));
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+			ImGui::Begin("ResultFilter", nullptr, flag);
+			ImGui::InputTextWithHint(
+				"filter", "input text filter regex", FilterRegexBuffer, sizeof(FilterRegexBuffer));
+			ImGui::End();
+			ImGui::PopStyleVar();
+		}
 
 		bool						EnableFilter = strlen(FilterRegexBuffer) > 0;
 		std::unique_ptr<std::regex> filter		 = nullptr;
@@ -350,9 +355,11 @@ public:	  //!< Main Program
 		flags["OnExplorerInit"]			  = true;
 		flags["ShowEmptyRegistryItems"]	  = false;
 		flags["ExpandKeyValuesOnDefault"] = true;
+
 		auto FontSmall =
 			ImGui::GetIO().Fonts->AddFontFromFileTTF(R"(..\assets\DroidSans.ttf)", 16.0f);
 		ImGui::GetIO().Fonts->Build();
+
 		LoadTextureFromFile(
 			pd3dDevice_, R"(..\assets\image.png)", &texture_Background, &size_Background);
 	}
@@ -385,6 +392,11 @@ public:	  //!< Main Program
 		TransactionHandler();
 
 		ImGuiApplication::prepare();
+
+		ImRect rect_Switch{};
+		ImGui::Switch(
+			"#RegsitryScopeSwitch", "Explorer", "Private", "Public", nullptr, &rect_Switch);
+		size_ExplorerMinTrack = rect_Switch.GetSize();
 	}
 
 	void render() override {

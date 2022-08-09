@@ -3,33 +3,56 @@
 
 namespace ImGui {
 
-bool Switch(const char* sid, const char* false_label, const char* true_label, bool* value) {
-	ImGuiWindow* window = GetCurrentWindow();
-	if (window->SkipItems) return false;
+bool Switch(const char* sid, const char* label, const char* false_label, const char* true_label,
+			bool* value, ImRect* out_rect_only) {
+	ImGuiWindow* window = nullptr;
+	ImGuiID		 id		= 0;
 
-	ImGuiContext&	  g		= *GImGui;
-	const ImGuiStyle& style = g.Style;
-	const ImGuiID	  id	= window->GetID(sid);
+	if (out_rect_only == nullptr) {
+		window = GetCurrentWindow();
+		if (window->SkipItems) return false;
+		id = window->GetID(sid);
+	}
 
 	ImVec2		 padding{GetFontSize(), GetFontSize() * 0.2f};
 	float		 spacing		  = GetFontSize() * 1.5;
 	const ImVec2 false_label_size = CalcTextSize(false_label);
 	const ImVec2 true_label_size  = CalcTextSize(true_label);
+	ImVec2		 label_size{0, 0};
+	float		 full_label_width = 0.0f;
 	float		 status_width	  = ImMax(false_label_size.x, true_label_size.x);
 	ImVec2		 raw_size{
 		  status_width * 2 + spacing + padding.x * 2,
 		  true_label_size.y + padding.y * 2,
 	  };
-	ImVec2		 pos  = window->DC.CursorPos;
-	ImVec2		 size = CalcItemSize(ImVec2(0, 0), raw_size.x, raw_size.y);
-	pos.x += (window->Size.x - size.x) / 2 - window->WindowPadding.x;
-	const ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+	if (label != nullptr) {
+		label_size		 = CalcTextSize(label);
+		full_label_width = label_size.x + spacing / 2;
+		raw_size.x += full_label_width;
+	}
+	ImVec2 pos	= out_rect_only ? ImVec2(0, 0) : window->DC.CursorPos;
+	ImVec2 size = CalcItemSize(ImVec2(0, 0), raw_size.x, raw_size.y);
+	ImRect bb(pos, ImVec2(pos.x + size.x, pos.y + size.y));
+
+	if (out_rect_only != nullptr) {
+		*out_rect_only = bb;
+		return true;
+	}
+
 	ItemSize(size);
 	if (!ItemAdd(bb, id)) return false;
 
 	bool hovered, held;
 	bool pressed = ButtonBehavior(bb, id, &hovered, &held);
 	if (pressed) *value = !*value;
+
+	float switch_width = raw_size.x;
+	if (label != nullptr) {
+		RenderText(ImVec2(pos.x, pos.y + padding.y), label);
+		bb.Min.x += full_label_width;
+		pos.x += full_label_width;
+		switch_width -= full_label_width;
+	}
 
 	float mid_x = (bb.Min.x + bb.Max.x) * 0.5f;
 
@@ -44,11 +67,11 @@ bool Switch(const char* sid, const char* false_label, const char* true_label, bo
 
 	ImVec2 text_pos{pos.x, pos.y + padding.y};
 	PushStyleColor(ImGuiCol_Text, *value ? black_col : white_col);
-	RenderText(ImVec2(text_pos.x + (raw_size.x / 2 - false_label_size.x) / 2, text_pos.y),
+	RenderText(ImVec2(text_pos.x + (switch_width / 2 - false_label_size.x) / 2, text_pos.y),
 			   false_label);
-	text_pos.x += raw_size.x / 2;
+	text_pos.x += switch_width / 2;
 	PushStyleColor(ImGuiCol_Text, *value ? white_col : black_col);
-	RenderText(ImVec2(text_pos.x + (raw_size.x / 2 - true_label_size.x) / 2, text_pos.y),
+	RenderText(ImVec2(text_pos.x + (switch_width / 2 - true_label_size.x) / 2, text_pos.y),
 			   true_label);
 	PopStyleColor(2);
 

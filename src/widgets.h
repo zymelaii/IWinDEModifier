@@ -3,6 +3,7 @@
 
 namespace ImGui {
 
-bool Switch(const char *sid, const char *false_label, const char *true_label, bool *value);
+bool Switch(const char* sid, const char* label, const char* false_label, const char* true_label,
+			bool* value, ImRect* out_rect_only = nullptr);
 
 };
