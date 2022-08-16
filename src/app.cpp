@@ -3,6 +3,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include <any>
+#include <cstddef>
 #include <errhandlingapi.h>
 #include <regex>
 #include <iwindeapi/registry.h>
@@ -11,7 +12,7 @@
 #include <compare>
 #include <memory>
 #include <map>
-#include <stdint.h>
+#include <set>
 #include <string>
 #include <iostream>
 #include <winnt.h>
@@ -21,23 +22,25 @@ class IWinDEModifierApp : public ImGuiApplication {
 private:   //!< Configuration
 	//! flags
 	std::map<std::string, bool> flags{};
-	std::vector<bool>			AnonymousFlagPool{};
 	bool						open_MainMenuBar = true;
 	bool						open_About		 = false;
 	bool						open_Explorer	 = true;
 	bool						open_Settings	 = false;
 	//! status
-	std::vector<std::string> FileExts{};
-	bool					 HandlePublicRegistry = false;
-	bool					 RegistryScopeChanged = true;
-	int						 CurrentSettingsOn	  = 0;
-	char					 FilterRegexBuffer[256]{};
-	size_t					 nEmptyKey = 0;
-	ImVec2					 size_MainMenuBar{0, 0};
-	ImVec2					 size_Explorer{100, 0};
-	ImVec2					 size_ExplorerMinTrack{0, 0};
-	ImFont*					 FontClear = nullptr;
-	ImFont*					 FontSmall = nullptr;
+	enum class AssocType { None, Irregular, User, System, App };
+	bool										 HandlePublicRegistry = false;
+	bool										 RegistryScopeChanged = true;
+	int											 CurrentSettingsOn	  = 0;
+	AssocType									 AssocAppType		  = AssocType::None;
+	std::unique_ptr<std::string>				 AssocApp			  = nullptr;
+	size_t										 nEmptyKey			  = 0;
+	ImVec2										 size_MainMenuBar{0, 0};
+	ImVec2										 size_Explorer{100, 0};
+	ImVec2										 size_ExplorerMinTrack{0, 0};
+	ImFont*										 FontClear = nullptr;
+	ImFont*										 FontSmall = nullptr;
+	std::set<std::string>						 AssocApps{};
+	std::map<std::string, std::set<std::string>> AppSupportTypes{};
 	//! config
 	const ImVec2   StatusBarPadding{12, 4};
 	const wchar_t* ExtRegItemPath = LR"(SOFTWARE\Classes)";
@@ -109,15 +112,18 @@ public:	  //!< Components
 			ImGui::EndMenu();
 		}
 
-		auto menubar = ImGui::GetCurrentWindow();
-		ImGui::AlignTextToFramePadding();
-		char FPS[64]{};
-		sprintf(FPS, "FPS: %.2f", ImGui::GetIO().Framerate);
-		ImGui::ItemSize(ImVec2(menubar->Size.x - menubar->DC.CursorPos.x -
-								   ImGui::CalcTextSize(FPS).x - ImGui::GetFontSize(),
-							   menubar->Size.y));
-		size_MainMenuBar = menubar->Size;
-		ImGui::TextColored(ImVec4(1.00, 0.00, 0.00, 1.00), "%s", FPS);
+		if (flags["DisplayFPS"]) {
+			auto menubar = ImGui::GetCurrentWindow();
+			ImGui::AlignTextToFramePadding();
+			char FPS[64]{};
+			sprintf(FPS, "FPS: %.2f", ImGui::GetIO().Framerate);
+			ImGui::ItemSize(ImVec2(menubar->Size.x - menubar->DC.CursorPos.x -
+									   ImGui::CalcTextSize(FPS).x - ImGui::GetFontSize(),
+								   menubar->Size.y));
+			size_MainMenuBar = menubar->Size;
+			ImGui::TextColored(ImVec4(1.00, 0.00, 0.00, 1.00), "%s", FPS);
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 
@@ -143,6 +149,7 @@ public:	  //!< Components
 			switch (CurrentSettingsOn) {
 				case 0: {
 					if (ImGui::BeginTabItem("General")) {
+						ImGui::Checkbox("Display FPS", &this->flags.find("DisplayFPS")->second);
 						ImGui::Checkbox("Show empty registry items",
 										&this->flags.find("ShowEmptyRegistryItems")->second);
 						ImGui::Checkbox("Expand key values on default ",
@@ -173,66 +180,72 @@ public:	  //!< Components
 	}
 
 	void ShowExplorer() {
-		auto flag = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
-					ImGuiWindowFlags_NoBringToFrontOnFocus;
-		auto client = ImGui::GetIO().DisplaySize;
-		auto offset = open_MainMenuBar ? size_MainMenuBar.y : 0;
+		constexpr auto flag = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
+							  ImGuiWindowFlags_NoBringToFrontOnFocus;
+		const auto client = ImGui::GetIO().DisplaySize;
+		auto	   offset = open_MainMenuBar ? size_MainMenuBar.y : 0;
 		if (flags["OnExplorerInit"]) {
 			size_Explorer.x			= InitialExplorerWidth;
 			flags["OnExplorerInit"] = false;
 		}
-		size_Explorer.y = client.y - offset;
+		size_Explorer.y = client.y - offset + ImGui::GetStyle().WindowBorderSize;
 		ImGui::SetNextWindowSize(size_Explorer);
 		ImGui::SetNextWindowBgAlpha(0.72);
 		ImGui::SetNextWindowSizeConstraints(
 			ImVec2(size_ExplorerMinTrack.x + ImGui::GetStyle().WindowPadding.x * 2,
-				   client.y),
-			ImVec2(320, client.y));
-		ImGui::SetNextWindowPos(ImVec2(0, offset));
+				   size_Explorer.y),
+			ImVec2(client.x / 2, size_Explorer.y));
+		ImGui::SetNextWindowPos(ImVec2(0, offset - ImGui::GetStyle().WindowBorderSize));
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetFontSize() * 0.5);
-
 		ImGui::Begin("Explorer", &open_Explorer, flag);
 		if (ImGui::Switch(
 				"#RegsitryScopeSwitch", "Explorer", "Private", "Public", &HandlePublicRegistry)) {
 			RegistryScopeChanged = true;
 		}
+		ImGui::Separator();
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+		ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, ImVec4(0, 0, 0, 0));
+		ImGui::BeginChild("#Explorer", ImVec2(0, 0), false, flag);
+		if (ImGui::CollapsingHeader("AssocApplication", ImGuiTreeNodeFlags_DefaultOpen)) {
+			constexpr auto leaf_flag  = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+			constexpr auto regex_flag = std::regex::ECMAScript | std::regex::icase;
+			bool		   pressed = false, is_open = false;
+			for (auto& app : AssocApps) {
+				is_open = ImGui::TreeNode(app.c_str(), &pressed);
+				if (!is_open) continue;
+				if (pressed) {
+					flags["ViewAssocApp"]		  = true;
+					flags["ViewAssocAppDetailed"] = false;
+					if (app == "<System>") {
+						AssocAppType = AssocType::System;
+					} else if (app == "<User>") {
+						AssocAppType = AssocType::User;
+					} else if (app == "<Irregular>") {
+						AssocAppType = AssocType::Irregular;
+					} else {
+						AssocAppType = AssocType::App;
+						AssocApp	 = std::make_unique<std::string>(app);
+					}
+				}
+				for (auto& assoc : AppSupportTypes[app]) {
+					is_open = ImGui::TreeNode(assoc.c_str(), &pressed, leaf_flag);
+					if (!is_open) continue;
+					if (pressed) {
+						flags["ViewAssocApp"]		  = false;
+						flags["ViewAssocAppDetailed"] = true;
+					}
+					ImGui::TreePop();
+				}
+				ImGui::TreePop();
+			}
+		}
+		ImGui::EndChild();
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar();
 		size_Explorer = ImGui::GetWindowSize();
 		ImGui::End();
 
 		ImGui::PopStyleVar();
-	}
-
-	int ShowRegistryItemContent(HKEY item, const char* ext, bool disable = false) {
-		wchar_t buffer[64]{};
-		_swprintf(buffer, L"%S", ext);
-		auto extitem = OpenRegistryItem(item, buffer, KEY_READ | KEY_WOW64_64KEY).value_or(nullptr);
-		IM_ASSERT_USER_ERROR(extitem != nullptr, "registry key open failure");
-
-		size_t nkey = std::any_cast<size_t>(QueryRegistryItemInfo(extitem, RegInfo::KeyNum));
-		for (int i = 0; !disable && i < nkey; ++i) {
-			auto		   key = std::move(EnumRegistryKey(extitem, i).value());
-			char		   buffer[256]{};
-			char*		   p = buffer;
-			const wchar_t* q = key[0] == 0 ? L"(Default)" : key.get();
-			do {
-				*p++ = *q++;
-			} while (*q != 0);
-			auto [result, type, size] = GetRegistryValue(extitem, key.get());
-			if (type == REG_SZ || type == REG_EXPAND_SZ) {
-				std::unique_ptr<uint8_t[]> value = nullptr;
-				GetRegistryValue(extitem, key.get(), value);
-				*p++ = ':';
-				*p++ = ' ';
-				q	 = reinterpret_cast<wchar_t*>(value.get());
-				do {
-					*p++ = *q;
-				} while (*q++ != 0);
-			}
-			*p = 0;
-			ImGui::BulletText("%s", buffer);
-		}
-		CloseRegistryItem(extitem);
-		return nkey;
 	}
 
 	void ShowMainView() {
@@ -251,84 +264,71 @@ public:	  //!< Components
 			pos.y += size_MainMenuBar.y;
 		}
 
-		if (!FileExts.empty()) {
-			size.y -= ImGui::GetFontSize() + StatusBarPadding.y * 2;   //!< for status bar
-		}
-
-		if (!FileExts.empty()) {
-			auto height = ImGui::GetFontSize() * 1.6 + StatusBarPadding.y * 2;
-			ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y - height));
-			ImGui::SetNextWindowSize(ImVec2(size.x, height));
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-			ImGui::Begin("ResultFilter", nullptr, flag);
-			ImGui::InputTextWithHint(
-				"filter", "input text filter regex", FilterRegexBuffer, sizeof(FilterRegexBuffer));
-			ImGui::End();
-			ImGui::PopStyleVar();
-		}
-
-		bool						EnableFilter = strlen(FilterRegexBuffer) > 0;
-		std::unique_ptr<std::regex> filter		 = nullptr;
-		try {
-			filter = std::make_unique<std::regex>(FilterRegexBuffer);
-		} catch (std::regex_error) {
-			EnableFilter = false;
-		}
+		ImVec2 size_StatusBar{size.x, ImGui::GetFontSize() + StatusBarPadding.y * 2};
+		size.y -= size_StatusBar.y;
 
 		ImGui::SetNextWindowPos(pos);
 		ImGui::SetNextWindowSize(size);
 		ImGui::SetNextWindowBgAlpha(0.88);
-		ImGui::Begin("MainView", nullptr, flag);
 
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-		ImGui::BeginChild("FilterInput", ImVec2(0, ImGui::GetFontSize() * 2));
-		ImGui::InputTextWithHint(
-			"filter", "input text filter regex", FilterRegexBuffer, sizeof(FilterRegexBuffer));
-		ImGui::EndChild();
-		ImGui::PopStyleVar();
+		// ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, ImVec4(0, 0, 0, 0));
+		// ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
+		// 					ImVec2(0, ImGui::GetStyle().WindowPadding.y));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
+		ImGui::Begin("MainView", nullptr, flag | ImGuiWindowFlags_NoScrollbar);
+		ImGui::BeginChild("MainViewPanel");
 
-		ImGui::PushFont(FontClear);
-
-		bool PublicScope = HandlePublicRegistry && !RegistryScopeChanged ||
-						   !HandlePublicRegistry && RegistryScopeChanged;
-		HKEY RootItem = PublicScope ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
-		auto Access	  = KEY_READ | KEY_WOW64_64KEY;
-		HKEY Item	  = OpenRegistryItem(RootItem, ExtRegItemPath, Access).value_or(nullptr);
-		IM_ASSERT_USER_ERROR(Item != nullptr, "registry access failure");
-
-		int		   index				  = 0;
-		const bool ShowEmptyRegistryItems = flags["ShowEmptyRegistryItems"];
-		for (auto ext : FileExts) {
-			auto nkey = ShowRegistryItemContent(Item, ext.data(), true);
-			if (ShowEmptyRegistryItems || nkey != 0) {
-				if (!EnableFilter || EnableFilter && std::regex_search(ext.data(), *filter.get())) {
-					if (ImGui::RadioButton(ext.data(), AnonymousFlagPool[index])) {
-						AnonymousFlagPool[index] = !AnonymousFlagPool[index];
+		bool flag_List = flags["ViewAssocApp"] | flags["ViewAssocAppDetailed"];
+		if (flags["ViewAssocApp"]) {
+			switch (AssocAppType) {
+				case AssocType::System: {
+					for (auto& FileExt : AppSupportTypes["<System>"]) {
+						ImGui::AssocViewerItem((FileExt + "File").c_str());
 					}
-					ImGui::Indent();
-					ShowRegistryItemContent(Item, ext.data(), !AnonymousFlagPool[index]);
-					ImGui::Unindent();
+					break;
 				}
+				case AssocType::User: {
+					for (auto& FileExt : AppSupportTypes["<User>"]) {
+						ImGui::AssocViewerItem((FileExt + "_auto_file").c_str());
+					}
+					break;
+				}
+				case AssocType::Irregular: {
+					for (auto& App : AppSupportTypes["<Irregular>"]) {
+						ImGui::AssocViewerItem(App.c_str());
+					}
+					break;
+				}
+				case AssocType::App: {
+					const auto& App = *AssocApp.get();
+					for (auto& Item : AppSupportTypes[App]) {
+						ImGui::AssocViewerItem((App + "." + Item).c_str());
+					}
+					break;
+				}
+				default: break;
 			}
-			++index;
+		} else if (flags["ViewAssocAppDetailed"]) {
+			// TODO
 		}
-		CloseRegistryItem(Item);
-		ImGui::PopFont();
 
+		ImGui::EndChild();
 		ImGui::End();
+		ImGui::PopStyleVar(2);
+		// ImGui::PopStyleColor();
 
-		if (!FileExts.empty()) {
-			ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y + size.y));
-			ImGui::SetNextWindowSize(ImVec2(size.x, ImGui::GetFontSize() + StatusBarPadding.y * 2));
-			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.00, 0.48, 0.80, 1.00));
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.00, 1.00, 1.00, 1.00));
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, StatusBarPadding);
-			ImGui::Begin("RegistryStatusBar", nullptr, flag);
-			ImGui::Text("found %llu items in total (%zu empty keys)", FileExts.size(), nEmptyKey);
-			ImGui::End();
-			ImGui::PopStyleVar();
-			ImGui::PopStyleColor(2);
-		}
+		ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y + size.y));
+		ImGui::SetNextWindowSize(size_StatusBar);
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.00, 0.48, 0.80, 1.00));
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.00, 1.00, 1.00, 1.00));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, StatusBarPadding);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+		ImGui::Begin("RegistryStatusBar", nullptr, flag);
+		// TODO
+		ImGui::End();
+		ImGui::PopStyleVar(2);
+		ImGui::PopStyleColor(2);
 	}
 
 public:	  //!< Main Program
@@ -353,8 +353,11 @@ public:	  //!< Main Program
 		ImGuiApplication::configure();
 		flags["FirstToggleExplorer"]	  = false;
 		flags["OnExplorerInit"]			  = true;
+		flags["DisplayFPS"]				  = true;
 		flags["ShowEmptyRegistryItems"]	  = false;
 		flags["ExpandKeyValuesOnDefault"] = true;
+		flags["ViewAssocApp"]			  = false;
+		flags["ViewAssocAppDetailed"]	  = false;
 
 		auto FontSmall =
 			ImGui::GetIO().Fonts->AddFontFromFileTTF(R"(..\assets\DroidSans.ttf)", 16.0f);
@@ -423,10 +426,15 @@ public:	  //!< Main Program
 			HKEY Item	  = OpenRegistryItem(RootItem, ExtRegItemPath, Access).value_or(nullptr);
 			IM_ASSERT_USER_ERROR(Item != nullptr, "registry access failure");
 
-			std::vector<std::string> Extensions{};
-			size_t					 nSubItem =
+			size_t nSubItem =
 				std::any_cast<size_t>(QueryRegistryItemInfo(Item, RegInfo::SubItemNum));
-			Extensions.reserve(nSubItem);
+
+			AssocApps.clear();
+			AppSupportTypes.clear();
+
+			AssocApps.insert("<System>");
+			AssocApps.insert("<User>");
+			AssocApps.insert("<Irregular>");
 
 			nEmptyKey = 0;
 			for (int i = 0; i < nSubItem; ++i) {
@@ -439,20 +447,49 @@ public:	  //!< Main Program
 					for (int j = 0, len = wcslen(wsSubItem.get()); j < len; ++j) {
 						buffer[j] = static_cast<char>(wsSubItem[j]);
 					}
-					nEmptyKey += ShowRegistryItemContent(Item, buffer, true) == 0;
-					Extensions.emplace_back(buffer);
+					HKEY SubItem = OpenRegistryItem(Item, wsSubItem.get(), Access).value();
+					IM_ASSERT_USER_ERROR(SubItem != nullptr, "registry access failure");
+					auto nkey =
+						std::any_cast<size_t>(QueryRegistryItemInfo(SubItem, RegInfo::KeyNum));
+					if (nkey != 0) {
+						std::unique_ptr<uint8_t[]> bytes = nullptr;
+						GetRegistryValue(SubItem, L"", bytes);
+						constexpr auto flag	 = std::regex::ECMAScript | std::regex::icase;
+						auto		   value = reinterpret_cast<const wchar_t*>(bytes.get());
+						if (value != nullptr && wcscmp(value, L"") != 0) {
+							std::regex re_system(R"(^([^_\.]+)file$)", flag),
+								re_user(R"(^([^\.]+)_auto_file$)", flag),
+								re_app(R"(^([^\.]+)\.(.+)$)", flag);
+							int j = 0;
+							do {
+								buffer[j] = static_cast<char>(value[j]);
+							} while (value[j++] != 0);
+							if (std::cmatch m{}; std::regex_search(buffer, m, re_app)) {
+								auto app{std::move(m[1].str())};
+								AppSupportTypes[app].insert(std::move(m[2].str()));
+								AssocApps.insert(std::move(app));
+							} else if (std::cmatch m{}; std::regex_search(buffer, m, re_user)) {
+								AppSupportTypes["<User>"].insert(std::move(m[1].str()));
+							} else if (std::cmatch m{}; std::regex_search(buffer, m, re_system)) {
+								AppSupportTypes["<System>"].insert(std::move(m[1].str()));
+							} else {
+								AppSupportTypes["<Irregular>"].insert(buffer);
+							}
+						}
+						CloseRegistryItem(SubItem);
+					} else {
+						nEmptyKey += nkey == 0;
+					}
+				}
+			}
+
+			for (auto app : {"<System>", "<User>", "<Irregular>"}) {
+				if (AppSupportTypes[app].size() == 0) {
+					AssocApps.erase(app);
 				}
 			}
 
 			CloseRegistryItem(Item);
-
-			Extensions.shrink_to_fit();
-			FileExts.swap(Extensions);
-			AnonymousFlagPool.resize(FileExts.size());
-			std::fill(AnonymousFlagPool.begin(),
-					  AnonymousFlagPool.end(),
-					  flags["ExpandKeyValuesOnDefault"]);
-
 			RegistryScopeChanged = false;
 		}
 	}
