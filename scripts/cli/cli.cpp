@@ -9,6 +9,7 @@ extern "C" {
 int cli_entry_UserChoice(int, wchar_t*[]);
 int cli_entry_regkey(int, wchar_t*[]);
 int cli_entry_flush(int, wchar_t*[]);
+int cli_entry_shell(int, wchar_t*[]);
 };
 
 int main(int argc, char* argv[]) {
@@ -16,6 +17,7 @@ int main(int argc, char* argv[]) {
 		{"UserChoice", cli_entry_UserChoice},
 		{"regkey", cli_entry_regkey},
 		{"flush", cli_entry_flush},
+		{"shell", cli_entry_shell},
 	};
 
 	if (argc < 2) {

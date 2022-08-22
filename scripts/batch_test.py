@@ -28,7 +28,9 @@ extlist = [
 	('ini', 'INI Settings', ['ini'], None),
 	('xml', 'XML Document', ['xml'], None),
 	('json', 'JSON Document', ['json'], None),
+	('rust', 'Rust Source', ['rs'], None),
 	('yaml', 'YAML Document', ['yaml', 'yml'], None),
+	('typescript', 'TypeScript Source', ['ts'], None),
 	('pylauncher', 'Python Source', ['py'], 'E:\\EnvrSupport\\Python\\python310\\python.exe'),
 	('jslauncher', 'JavaScript Source', ['js'], 'E:\\EnvrSupport\\Node.js\\node-v18.0.0-win-x64\\node.exe'),
 ]
@@ -60,3 +62,10 @@ execute_cli('flush')
 # 	.DeclareShell('Edit', alias='编辑', cmd='"E:\PortableApp\VSCode\Code.exe" "%L"') \
 # 	.SetDefaultShell('Execute') \
 # 	.Register()
+
+
+# 此电脑(×) → 颜表情轮盘(√)
+ThisPC = RegKeyItem('HKEY_CURRENT_USER\\SOFTWARE\\Classes\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}')
+
+ThisPC.set('LocalizedString', 'This PC')
+execute_cli('flush')

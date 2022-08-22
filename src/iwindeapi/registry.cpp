@@ -20,7 +20,7 @@ auto CreateRegistryItem(HKEY parent, const wchar_t* item, REGSAM access) -> std:
 auto OpenRegistryItem(HKEY parent, const wchar_t* item, REGSAM access) -> std::optional<HKEY> {
 	HKEY key = nullptr;
 	IWDEM_CheckOrReturn(ERROR_SUCCESS == RegOpenKeyExW(parent, item, 0, access, &key),
-						std::nullopt);
+						std::nullopt);	 //!< [likely] access denied
 	return {key};
 }
 
@@ -41,7 +41,7 @@ std::any QueryRegistryItemInfo(HKEY item, RegInfo info) {
 	RegQueryInfoKeyW(item,			  //!< item handle
 					 buffer,		  //!< RegInfo::ItemClass
 					 &values[0],	  //!< RegInfo::ItemClassLen
-					 nullptr,		  //<! reserved
+					 nullptr,		  //!< reserved
 					 &values[1],	  //!< RegInfo::SubItemNum
 					 &values[2],	  //!< RegInfo::MaxSubItemLen
 					 &values[3],	  //!< ignore
