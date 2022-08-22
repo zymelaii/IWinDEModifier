@@ -2,29 +2,24 @@ file(GLOB HEADER_FILES iwindeapi/*.h)
 file(GLOB SOURCE_FILES iwindeapi/*.cpp)
 
 add_library(iwindeapi SHARED ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(iwindeapi PRIVATE crypt32 bcrypt)
-
 add_library(iwindeapi-static STATIC ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(iwindeapi-static PRIVATE crypt32 bcrypt)
-
-file(GLOB_RECURSE HEADER_FILES *.h)
-file(GLOB SOURCE_FILES imgui/*.cpp)
-add_library(imgui-dx11 STATIC ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(imgui-dx11 PRIVATE gdi32 dwmapi d3dcompiler d3d11)
 
 file(GLOB SOURCE_FILES *.cpp)
 add_executable(IWinDEModifier ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(IWinDEModifier PRIVATE iwindeapi-static imgui-dx11)
+target_link_libraries(IWinDEModifier PRIVATE iwindeapi imgui-dx11)
 
-if (NOT MSVC)
-	if (CMAKE_BUILD_TYPE STREQUAL "Release")
-		target_compile_options(imgui-dx11 PRIVATE -DNDEBUG -O3)
-		target_compile_options(IWinDEModifier PRIVATE --static -DNDEBUG -O3)
-		target_link_options(IWinDEModifier PRIVATE -Wl,-subsystem,windows)
-	elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-		target_compile_options(imgui-dx11 PRIVATE -g -DDEBUG)
-		target_compile_options(IWinDEModifier PRIVATE -g -DDEBUG)
-	endif()
+set(Targets iwindeapi iwindeapi-static)
+foreach(target ${Targets})
+	target_link_libraries(${target} PRIVATE crypt32 bcrypt)
+endforeach()
+
+if (NOT MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
+	target_link_options(IWinDEModifier PRIVATE -Wl,-subsystem,windows)
 endif()
 
-file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+add_custom_command(TARGET IWinDEModifier POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  	${CMAKE_SOURCE_DIR}/assets
+	${CMAKE_BINARY_DIR}
+  COMMAND_EXPAND_LISTS
+)

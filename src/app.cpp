@@ -1,22 +1,20 @@
-#include "backend.h"
-#include "widgets.h"
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
-#include <any>
 #include <cstddef>
-#include <errhandlingapi.h>
-#include <regex>
-#include <iwindeapi/registry.h>
-
 #include <algorithm>
+#include <regex>
 #include <compare>
+#include <any>
 #include <memory>
 #include <map>
 #include <set>
 #include <string>
 #include <iostream>
-#include <winnt.h>
-#include <winreg.h>
+
+#include <backend.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+
+#include <iwindeapi/registry.h>
+#include "widgets.h"
 
 class IWinDEModifierApp : public ImGuiApplication {
 private:   //!< Configuration
