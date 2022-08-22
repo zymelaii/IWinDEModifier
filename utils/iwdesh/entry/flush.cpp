@@ -1,9 +1,10 @@
+#include "../iwdesh.h"
 #include <iwindeapi/userchoice.h>
 #include <ShlObj.h>
 #include <memory>
 #include <iostream>
 
-extern "C" int cli_entry_flush(int argc, wchar_t* argv[]) {
+DEF_IWDESH_ENTRY(flush, argc, argv) {
 	if (auto opt = GetCurrentUserName(); opt.has_value()) {
 		const auto fmtpath	= LR"(C:\Users\%S\Desktop)";
 		auto	   UserName = std::move(opt.value());

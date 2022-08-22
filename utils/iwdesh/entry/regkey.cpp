@@ -1,3 +1,4 @@
+#include "../iwdesh.h"
 #include <iwindeapi/registry.h>
 #include <iostream>
 #include <accctrl.h>
@@ -6,10 +7,6 @@
 #include <winbase.h>
 #include <winerror.h>
 #include <winnt.h>
-
-template<typename T> T QueryRegistryItemInfo(HKEY item, RegInfo info) {
-	return {std::any_cast<T>(QueryRegistryItemInfo(item, info))};
-}
 
 template<bool erase = true, typename... Flags>
 bool QueryCommandFlags(int& argc, wchar_t* argv[], Flags... flags) {
@@ -23,6 +20,10 @@ bool QueryCommandFlags(int& argc, wchar_t* argv[], Flags... flags) {
 		}
 	}
 	return found;
+}
+
+template<typename T> T QueryRegistryItemInfo(HKEY item, RegInfo info) {
+	return {std::any_cast<T>(QueryRegistryItemInfo(item, info))};
 }
 
 int ListItemRecursive(HKEY item, bool show_keys = true, bool value_only = false, int depth = 0,
@@ -66,7 +67,7 @@ int ListItemRecursive(HKEY item, bool show_keys = true, bool value_only = false,
 	return 0;
 }
 
-extern "C" int cli_entry_regkey_query(int argc, wchar_t* argv[]) {
+DEF_IWDESH_ENTRY(regkey_query, argc, argv) {
 	bool halt_on_error = QueryCommandFlags(argc, argv, L"--halt-on-error");
 	bool silent		   = QueryCommandFlags(argc, argv, L"-s", L"--silent");
 
@@ -115,7 +116,7 @@ Security Descriptor Size: %lubytes
 	return 0;
 }
 
-extern "C" int cli_entry_regkey_list(int argc, wchar_t* argv[]) {
+DEF_IWDESH_ENTRY(regkey_list, argc, argv) {
 	bool value_only = QueryCommandFlags(argc, argv, L"-V", L"--value-only");
 	bool show_keys	= QueryCommandFlags(argc, argv, L"-k", L"--show-keys");
 	bool global		= QueryCommandFlags(argc, argv, L"-g", L"--global");
@@ -136,7 +137,7 @@ extern "C" int cli_entry_regkey_list(int argc, wchar_t* argv[]) {
 	return 0;
 }
 
-extern "C" int cli_entry_regkey_acl(int argc, wchar_t* argv[]) {
+DEF_IWDESH_ENTRY(regkey_acl, argc, argv) {
 	const bool			 global = QueryCommandFlags(argc, argv, L"-g", L"--global");
 	const bool			 remove = QueryCommandFlags(argc, argv, L"-r", L"--remove");
 	const HKEY			 root	= global ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
@@ -244,14 +245,14 @@ Number of Explicit Entries: %d
 	return 0;
 }
 
-extern "C" int cli_entry_regkey(int argc, wchar_t* argv[]) {
+DEF_IWDESH_ENTRY(regkey, argc, argv) {
 	IWDEM_CheckOrReturn(argc > 0, 1, puts("Usage: regkey <Command> [Options]"));
 	if (wcscmp(argv[0], L"query") == 0) {
-		return cli_entry_regkey_query(argc - 1, argv + 1);
+		return IWDESHENTRY(regkey_query)(argc - 1, argv + 1);
 	} else if (wcscmp(argv[0], L"list") == 0) {
-		return cli_entry_regkey_list(argc - 1, argv + 1);
+		return IWDESHENTRY(regkey_list)(argc - 1, argv + 1);
 	} else if (wcscmp(argv[0], L"acl") == 0) {
-		return cli_entry_regkey_acl(argc - 1, argv + 1);
+		return IWDESHENTRY(regkey_acl)(argc - 1, argv + 1);
 	} else {
 		wprintf(LR"(unknown command "%S")", argv[0]);
 		return 2;

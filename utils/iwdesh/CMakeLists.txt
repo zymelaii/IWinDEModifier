@@ -1,23 +1,27 @@
-set(PROJECT_NAME iwdesh)
-set(PLUGIN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/plugins)
+set(UTIL_NAME iwdesh)
+set(PLUGIN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/${UTIL_NAME}/plugins)
 
 file(GLOB SOURCE_FILES entry/*.cpp)
 file(GLOB_RECURSE HEADER_FILES *.h)
 
-add_library(${PROJECT_NAME}-core MODULE ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME}-core PRIVATE iwindeapi-static)
-set_target_properties(${PROJECT_NAME}-core PROPERTIES PLUGIN_NAME core)
+add_library(${UTIL_NAME}-core MODULE ${HEADER_FILES} ${SOURCE_FILES})
+target_link_options(${UTIL_NAME}-core PRIVATE --static)
+target_link_libraries(${UTIL_NAME}-core PRIVATE iwindeapi-static)
+
+set_target_properties(${UTIL_NAME}-core PROPERTIES PLUGIN_NAME core)
 
 file(GLOB SOURCE_FILES *.cpp)
 
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+add_executable(${UTIL_NAME} ${SOURCE_FILES})
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
+target_link_options(${UTIL_NAME} PRIVATE --static)
 
-add_custom_command(TARGET ${PROJECT_NAME}-core POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy
-  	$<TARGET_FILE:${PROJECT_NAME}-core>
-	${PLUGIN_OUTPUT_DIR}/$<TARGET_PROPERTY:${PROJECT_NAME}-core,PLUGIN_NAME>.${PROJECT_NAME}-plugin
-  COMMAND_EXPAND_LISTS
+set_target_properties(${UTIL_NAME} PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${UTIL_NAME})
+
+add_custom_command(TARGET ${UTIL_NAME}-core POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy
+		$<TARGET_FILE:${UTIL_NAME}-core>
+		${PLUGIN_OUTPUT_DIR}/$<TARGET_PROPERTY:${UTIL_NAME}-core,PLUGIN_NAME>.${UTIL_NAME}-plugin
+	COMMAND_EXPAND_LISTS
 )

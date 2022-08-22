@@ -1,8 +1,9 @@
+#include "../iwdesh.h"
 #include <iwindeapi/userchoice.h>
 #include <memory>
 #include <iostream>
 
-extern "C" int cli_entry_UserChoice(int argc, wchar_t* argv[]) {
+DEF_IWDESH_ENTRY(UserChoice, argc, argv) {
 	SYSTEMTIME				   timestamp{};
 	std::unique_ptr<wchar_t[]> UserName{}, UserSID{}, UserChoice{}, Hash{};
 	const wchar_t*			   FileExt = argc >= 2 ? argv[0] : L".txt";
