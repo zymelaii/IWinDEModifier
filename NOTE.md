@@ -221,6 +221,13 @@ Extended:
 				- StreamResourceType: LIBRARY
 				+ PropertyBag
   					- FoldersDependentOn: {33E28130-4E1E-4676-835A-98395C3BC3BB};{B6EBFB86-6907-413C-9AF7-4FC2ABF07CC5}
+
+# Preview
++ .<FileExt>
+	+ ContextMenuHandlers
+		+ ShellImagePreview
+			- {FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}
+
 ```
 
 ```ini

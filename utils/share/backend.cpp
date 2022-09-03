@@ -6,19 +6,12 @@
 #include <winerror.h>
 #include <winuser.h>
 
-bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
-						 ID3D11ShaderResourceView** texture, ImVec2* size) {
-	int			   image_width	= 0;
-	int			   image_height = 0;
-	unsigned char* image_data	= stbi_load(filename, &image_width, &image_height, nullptr, 4);
-	if (image_data == nullptr) {
-		return false;
-	}
-
+bool LoadTextureFromMemory(ID3D11Device* device, const uint8_t* data, size_t width, size_t height,
+						   ID3D11ShaderResourceView** texture) {
 	// Create texture
 	D3D11_TEXTURE2D_DESC desc{};
-	desc.Width			  = image_width;
-	desc.Height			  = image_height;
+	desc.Width			  = width;
+	desc.Height			  = height;
 	desc.MipLevels		  = 1;
 	desc.ArraySize		  = 1;
 	desc.Format			  = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -29,7 +22,7 @@ bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
 
 	ID3D11Texture2D*	   pTexture = NULL;
 	D3D11_SUBRESOURCE_DATA subResource{};
-	subResource.pSysMem			 = image_data;
+	subResource.pSysMem			 = data;
 	subResource.SysMemPitch		 = desc.Width * 4;
 	subResource.SysMemSlicePitch = 0;
 	device->CreateTexture2D(&desc, &subResource, &pTexture);
@@ -42,6 +35,20 @@ bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	device->CreateShaderResourceView(pTexture, &srvDesc, texture);
 	pTexture->Release();
+
+	return true;
+}
+
+bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
+						 ID3D11ShaderResourceView** texture, ImVec2* size) {
+	int			   image_width	= 0;
+	int			   image_height = 0;
+	unsigned char* image_data	= stbi_load(filename, &image_width, &image_height, nullptr, 4);
+	if (image_data == nullptr) {
+		return false;
+	}
+
+	LoadTextureFromMemory(device, image_data, image_width, image_height, texture);
 
 	size->x = image_width;
 	size->y = image_height;
@@ -88,6 +95,7 @@ bool ImGuiApplication::CreateDeviceD3D() {
 		return false;
 
 	CreateRenderTarget();
+
 	return true;
 }
 
@@ -169,7 +177,8 @@ LRESULT WINAPI ImGuiApplication::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPA
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-ImGuiApplication::ImGuiApplication(const char* title, int width, int height)
+ImGuiApplication::ImGuiApplication(const char* title, int width, int height, int x, int y,
+								   DWORD style)
 	: pd3dDevice_(nullptr)
 	, pd3dDeviceContext_(nullptr)
 	, pSwapChain_(nullptr)
@@ -179,7 +188,7 @@ ImGuiApplication::ImGuiApplication(const char* title, int width, int height)
 	, clsname_()
 	, errno_(0)
 	, backgroundColor(1.00f, 1.00f, 1.00f, 1.00f) {
-	sprintf(clsname_, "ImGui.%s.Application", title);
+	sprintf(clsname_, "Core@ImGui.%s.Application", title);
 
 	ImGui_ImplWin32_EnableDpiAwareness();
 
@@ -197,17 +206,8 @@ ImGuiApplication::ImGuiApplication(const char* title, int width, int height)
 					 nullptr};
 	RegisterClassEx(&wc);
 
-	hwnd_ = CreateWindow(wc.lpszClassName,
-						 title,
-						 WS_OVERLAPPEDWINDOW,
-						 100,
-						 100,
-						 width,
-						 height,
-						 nullptr,
-						 nullptr,
-						 wc.hInstance,
-						 this);
+	hwnd_ = CreateWindow(
+		wc.lpszClassName, title, style, x, y, width, height, nullptr, nullptr, wc.hInstance, this);
 
 	if (!CreateDeviceD3D()) {
 		CleanupDeviceD3D();
@@ -259,15 +259,17 @@ void ImGuiApplication::present() {
 	pSwapChain_->Present(1, 0);
 }
 
-int ImGuiApplication::exec() {
+int ImGuiApplication::exec(bool visible) {
 	if (errno_ != 0) {
 		return errno_;
 	}
 
 	configure();
 
-	ShowWindow(hwnd_, SW_SHOWDEFAULT);
-	UpdateWindow(hwnd_);
+	if (visible) {
+		ShowWindow(hwnd_, SW_SHOWDEFAULT);
+		UpdateWindow(hwnd_);
+	}
 
 	bool done = false;
 	MSG	 msg{};
@@ -278,6 +280,32 @@ int ImGuiApplication::exec() {
 			if (msg.message == WM_QUIT) done = true;
 		}
 		if (done) break;
+
+		prepare();
+		render();
+		present();
+	}
+
+	return msg.lParam;
+}
+
+int ImGuiApplication::lazy_exec(bool visible) {
+	if (errno_ != 0) {
+		return errno_;
+	}
+
+	configure();
+
+	if (visible) {
+		ShowWindow(hwnd_, SW_SHOWDEFAULT);
+		UpdateWindow(hwnd_);
+	}
+
+	bool done = false;
+	MSG	 msg{};
+	while (GetMessage(&msg, nullptr, 0, 0) != 0) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 
 		prepare();
 		render();

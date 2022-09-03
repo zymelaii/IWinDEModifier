@@ -8,8 +8,12 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
 															 LPARAM lParam);
 
+bool LoadTextureFromMemory(ID3D11Device* device, const uint8_t* data, size_t width, size_t height,
+						   ID3D11ShaderResourceView** texture);
+
 bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
 						 ID3D11ShaderResourceView** texture, ImVec2* size);
+
 
 class ImGuiApplication {
 public:	  //! backend support
@@ -21,14 +25,16 @@ public:	  //! backend support
 	void				  ResizeBuffer(int width, int height);
 
 public:
-	ImGuiApplication(const char* title, int width, int height);
+	ImGuiApplication(const char* title, int width, int height, int x = 200, int y = 200,
+					 DWORD style = WS_OVERLAPPEDWINDOW);
 	virtual ~ImGuiApplication();
 	virtual std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam);
 	virtual void				   configure();
 	virtual void				   prepare();
 	virtual void				   render() = 0;
 	virtual void				   present();
-	int							   exec();
+	int							   exec(bool visible = true);
+	int							   lazy_exec(bool visible = true);
 
 public:
 	ImVec4 backgroundColor;

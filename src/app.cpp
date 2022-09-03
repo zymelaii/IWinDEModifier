@@ -358,11 +358,11 @@ public:	  //!< Main Program
 		flags["ViewAssocAppDetailed"]	  = false;
 
 		auto FontSmall =
-			ImGui::GetIO().Fonts->AddFontFromFileTTF(R"(..\assets\DroidSans.ttf)", 16.0f);
+			ImGui::GetIO().Fonts->AddFontFromFileTTF(R"(assets\DroidSans.ttf)", 16.0f);
 		ImGui::GetIO().Fonts->Build();
 
 		LoadTextureFromFile(
-			pd3dDevice_, R"(..\assets\image.png)", &texture_Background, &size_Background);
+			pd3dDevice_, R"(assets\image.png)", &texture_Background, &size_Background);
 	}
 
 	void prepare() override {
