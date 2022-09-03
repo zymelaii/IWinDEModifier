@@ -41,9 +41,8 @@ bool LoadTextureFromMemory(ID3D11Device* device, const uint8_t* data, size_t wid
 
 bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
 						 ID3D11ShaderResourceView** texture, ImVec2* size) {
-	int			   image_width	= 0;
-	int			   image_height = 0;
-	unsigned char* image_data	= stbi_load(filename, &image_width, &image_height, nullptr, 4);
+	int			   image_width = 0, image_height = 0;
+	unsigned char* image_data = stbi_load(filename, &image_width, &image_height, nullptr, 4);
 	if (image_data == nullptr) {
 		return false;
 	}
@@ -80,19 +79,20 @@ bool ImGuiApplication::CreateDeviceD3D() {
 		D3D_FEATURE_LEVEL_11_0,
 		D3D_FEATURE_LEVEL_10_0,
 	};
-	if (D3D11CreateDeviceAndSwapChain(nullptr,
-									  D3D_DRIVER_TYPE_HARDWARE,
-									  nullptr,
-									  createDeviceFlags,
-									  featureLevelArray,
-									  2,
-									  D3D11_SDK_VERSION,
-									  &sd,
-									  &pSwapChain_,
-									  &pd3dDevice_,
-									  &featureLevel,
-									  &pd3dDeviceContext_) != S_OK)
-		return false;
+
+	HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr,
+											   D3D_DRIVER_TYPE_HARDWARE,
+											   nullptr,
+											   createDeviceFlags,
+											   featureLevelArray,
+											   2,
+											   D3D11_SDK_VERSION,
+											   &sd,
+											   &pSwapChain_,
+											   &pd3dDevice_,
+											   &featureLevel,
+											   &pd3dDeviceContext_);
+	if (!SUCCEEDED(hr)) return false;
 
 	CreateRenderTarget();
 
@@ -177,20 +177,30 @@ LRESULT WINAPI ImGuiApplication::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPA
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-ImGuiApplication::ImGuiApplication(const char* title, int width, int height, int x, int y,
-								   DWORD style)
+ImGuiApplication::ImGuiApplication()
 	: pd3dDevice_(nullptr)
 	, pd3dDeviceContext_(nullptr)
 	, pSwapChain_(nullptr)
 	, mainRenderTargetView_(nullptr)
 	, hwnd_(nullptr)
-	, instance_(nullptr)
-	, clsname_()
+	, class_()
 	, errno_(0)
-	, backgroundColor(1.00f, 1.00f, 1.00f, 1.00f) {
-	sprintf(clsname_, "Core@ImGui.%s.Application", title);
+	, backgroundColor(1.00f, 1.00f, 1.00f, 1.00f) {}
 
+ImGuiApplication::~ImGuiApplication() {
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
+	CleanupDeviceD3D();
+	DestroyWindow(hwnd_);
+	UnregisterClass(class_, GetModuleHandle(nullptr));
+}
+
+ImGuiApplication* ImGuiApplication::build(const char* title, int width, int height, int x, int y) {
 	ImGui_ImplWin32_EnableDpiAwareness();
+
+	sprintf(class_, "Core@ImGui.%s.Application", title);
 
 	WNDCLASSEX wc = {sizeof(WNDCLASSEX),
 					 CS_CLASSDC,
@@ -202,16 +212,26 @@ ImGuiApplication::ImGuiApplication(const char* title, int width, int height, int
 					 nullptr,
 					 nullptr,
 					 nullptr,
-					 clsname_,
+					 class_,
 					 nullptr};
 	RegisterClassEx(&wc);
 
-	hwnd_ = CreateWindow(
-		wc.lpszClassName, title, style, x, y, width, height, nullptr, nullptr, wc.hInstance, this);
+	hwnd_ = CreateWindowEx(WS_EX_APPWINDOW,
+						   wc.lpszClassName,
+						   title,
+						   WS_OVERLAPPEDWINDOW,
+						   x,
+						   y,
+						   width,
+						   height,
+						   nullptr,
+						   nullptr,
+						   wc.hInstance,
+						   this);
 
 	if (!CreateDeviceD3D()) {
 		CleanupDeviceD3D();
-		UnregisterClass(wc.lpszClassName, wc.hInstance);
+		UnregisterClass(class_, GetModuleHandle(nullptr));
 		errno_ = 1;
 	}
 
@@ -221,16 +241,8 @@ ImGuiApplication::ImGuiApplication(const char* title, int width, int height, int
 
 	ImGui_ImplWin32_Init(hwnd_);
 	ImGui_ImplDX11_Init(pd3dDevice_, pd3dDeviceContext_);
-}
 
-ImGuiApplication::~ImGuiApplication() {
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-
-	CleanupDeviceD3D();
-	DestroyWindow(hwnd_);
-	UnregisterClass(clsname_, instance_);
+	return this;
 }
 
 std::optional<LRESULT> ImGuiApplication::notify(UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -307,9 +319,13 @@ int ImGuiApplication::lazy_exec(bool visible) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 
-		prepare();
-		render();
-		present();
+		if (msg.message == WM_PAINT ||
+			msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST ||
+			msg.message >= WM_KEYFIRST && msg.message <= WM_KEYLAST) {
+			prepare();
+			render();
+			present();
+		}
 	}
 
 	return msg.lParam;

@@ -25,9 +25,9 @@ public:	  //! backend support
 	void				  ResizeBuffer(int width, int height);
 
 public:
-	ImGuiApplication(const char* title, int width, int height, int x = 200, int y = 200,
-					 DWORD style = WS_OVERLAPPEDWINDOW);
+	ImGuiApplication();
 	virtual ~ImGuiApplication();
+	virtual ImGuiApplication*	   build(const char* title, int width, int height, int x, int y);
 	virtual std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam);
 	virtual void				   configure();
 	virtual void				   prepare();
@@ -40,10 +40,9 @@ public:
 	ImVec4 backgroundColor;
 
 protected:
-	HWND	  hwnd_;
-	HINSTANCE instance_;
-	char	  clsname_[256];
-	int		  errno_;
+	HWND hwnd_;
+	char class_[256];
+	int	 errno_;
 
 protected:
 	ID3D11Device*			pd3dDevice_;
