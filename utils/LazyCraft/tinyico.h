@@ -131,12 +131,12 @@ void ti__convert_4bpp_to_argb(uint8_t* const bytes, const ti_bmpinfoheader_t* co
 	for (int bit = 0; bit < 8; bit += 2) {
 		ti_colrgb_t* col = (ti_colrgb_t*)bytes + bit;
 		for (int i = bit; i < npixels; i += 8) {
-			ti_colrgb_t tmp = palette[index[i / 2] & 0x0f];
+			ti_colrgb_t tmp = palette[(index[i / 2] & 0xf0) >> 4];
 			col[0].r		= tmp.b;
 			col[0].g		= tmp.g;
 			col[0].b		= tmp.r;
 			col[0].reserved = (maskbits[i / 8] & (0x80 >> bit)) ? 0x00 : 0xff;
-			tmp				= palette[index[i / 2] & 0xf0];
+			tmp				= palette[index[i / 2] & 0x0f];
 			col[1].r		= tmp.b;
 			col[1].g		= tmp.g;
 			col[1].b		= tmp.r;

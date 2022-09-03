@@ -13,12 +13,13 @@
 class LazyCraft : public ImGuiApplication {
 private:
 	using QuickLaunchItem = std::pair<std::wstring, ID3D11ShaderResourceView*>;
-	ID3D11ShaderResourceView*			   texture_Background = nullptr;
-	std::vector<QuickLaunchItem>		   QuickLaunchs{};
+	ID3D11ShaderResourceView*	 texture_Background = nullptr;
+	std::vector<QuickLaunchItem> QuickLaunchs{};
 
 public:	  //!< lc_main.cpp
-	LazyCraft(const char* title, int width, int height);
+	LazyCraft();
 
+	LazyCraft*			   build(const char* title, int width, int height, int x, int y) override;
 	std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam) override;
 	void				   configure() override;
 	void				   render() override;

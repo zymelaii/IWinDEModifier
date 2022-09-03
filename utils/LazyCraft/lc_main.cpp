@@ -1,7 +1,56 @@
 #include "lazycraft.h"
 
-LazyCraft::LazyCraft(const char* title, int width, int height)
-	: ImGuiApplication(title, width, height, 0, 0, WS_OVERLAPPED) {}
+LazyCraft::LazyCraft() {
+	build("LazyCraft", 0, 0, 0, 0);
+}
+
+LazyCraft* LazyCraft::build(const char* title, int width, int height, int x, int y) {
+	ImGui_ImplWin32_EnableDpiAwareness();
+
+	strcpy_s(class_, "IWinDEModifier::LazyCraft.MainWindow");
+
+	WNDCLASSEX wc = {sizeof(WNDCLASSEX),
+					 CS_CLASSDC,
+					 ImGuiApplication::WndProc,
+					 0,
+					 sizeof(void*),
+					 GetModuleHandle(nullptr),
+					 nullptr,
+					 nullptr,
+					 nullptr,
+					 nullptr,
+					 class_,
+					 nullptr};
+	RegisterClassEx(&wc);
+
+	hwnd_ = CreateWindowEx(WS_EX_NOACTIVATE,
+						   wc.lpszClassName,
+						   title,
+						   WS_OVERLAPPED,
+						   x,
+						   y,
+						   width,
+						   height,
+						   nullptr,
+						   nullptr,
+						   wc.hInstance,
+						   this);
+
+	if (!CreateDeviceD3D()) {
+		CleanupDeviceD3D();
+		UnregisterClass(class_, GetModuleHandle(nullptr));
+		errno_ = 1;
+	}
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+	ImGui_ImplWin32_Init(hwnd_);
+	ImGui_ImplDX11_Init(pd3dDevice_, pd3dDeviceContext_);
+
+	return this;
+}
 
 std::optional<LRESULT> LazyCraft::notify(UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
@@ -29,20 +78,18 @@ std::optional<LRESULT> LazyCraft::notify(UINT msg, WPARAM wParam, LPARAM lParam)
 void LazyCraft::configure() {
 	ImVec2 size{};
 	LoadTextureFromFile(pd3dDevice_, R"(assets\image.png)", &texture_Background, &size);
-	for (const auto& app : {
-			 LR"(E:\PortableApp\VSCode\Code.exe)",
-			 LR"(E:\PortableApp\Sublime Text 4\sublime_text.exe)",
-			 LR"(E:\PortableApp\qimgv\qimgv.exe)",
-			 LR"(E:\PortableApp\Chrome\App\chrome.exe)",
-			 LR"(E:\PortableApp\PotPlayer\PotPlayer64\PotPlayerMini64.exe)",
-			 LR"(E:\PortableApp\SumatraPDF\SumatraPDF.exe)",
-			 LR"(E:\PortableApp\ImageGlass Kobe\ImageGlass.exe)",
-			 LR"(E:\PortableApp\Bandicam\bdcam.exe)",
-			 LR"(E:\PortableApp\DB Browser for SQLite\DB Browser for SQLite.exe)",
-			 LR"(E:\PortableApp\ResourceHacker\ResourceHacker.exe)",
-			 LR"(E:\PortableApp\FastCopy\FastCopy.exe)",
-			 LR"(E:\PortableApp\MicroKMS\MicroKMS v20.09.12.exe)"
-		 }) {
+	for (const auto& app : {LR"(E:\PortableApp\VSCode\Code.exe)",
+							LR"(E:\PortableApp\Sublime Text 4\sublime_text.exe)",
+							LR"(E:\PortableApp\qimgv\qimgv.exe)",
+							LR"(E:\PortableApp\Chrome\App\chrome.exe)",
+							LR"(E:\PortableApp\PotPlayer\PotPlayer64\PotPlayerMini64.exe)",
+							LR"(E:\PortableApp\SumatraPDF\SumatraPDF.exe)",
+							LR"(E:\PortableApp\ImageGlass Kobe\ImageGlass.exe)",
+							LR"(E:\PortableApp\Bandicam\bdcam.exe)",
+							LR"(E:\PortableApp\DB Browser for SQLite\DB Browser for SQLite.exe)",
+							LR"(E:\PortableApp\ResourceHacker\ResourceHacker.exe)",
+							LR"(E:\PortableApp\FastCopy\FastCopy.exe)",
+							LR"(E:\PortableApp\MicroKMS\MicroKMS v20.09.12.exe)"}) {
 		auto texture = LoadIconFromModule(app);
 		if (texture != nullptr) {
 			// texture_QuickLaunchs.push_back(texture);

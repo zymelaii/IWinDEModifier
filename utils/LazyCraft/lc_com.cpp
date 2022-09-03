@@ -1,3 +1,5 @@
+#include <thread>
+
 #include "lazycraft.h"
 
 bool LazyCraft::IQuickLaunch() {
@@ -97,20 +99,25 @@ bool LazyCraft::IQuickLaunch() {
 		canvas->AddText(ImGui::GetFont(), ImGui::GetFontSize(), oritext, 0xff000000, text.c_str());
 
 		if (pressed) {
-			STARTUPINFOW		startinfo{};
-			PROCESS_INFORMATION procinfo{};
-			// startinfo.wShowWindow = SW_MAXIMIZE;
-			startinfo.cb		  = sizeof(STARTUPINFOW);
-			CreateProcessW(wtext.c_str(),
-						   nullptr,
-						   nullptr,
-						   nullptr,
-						   false,
-						   CREATE_NEW_PROCESS_GROUP | HIGH_PRIORITY_CLASS,
-						   nullptr,
-						   nullptr,
-						   &startinfo,
-						   &procinfo);
+			std::thread(
+				[](const wchar_t* prog) {
+					STARTUPINFOW		startinfo{};
+					PROCESS_INFORMATION procinfo{};
+					startinfo.cb = sizeof(STARTUPINFOW);
+					CreateProcessW(prog,
+								   nullptr,
+								   nullptr,
+								   nullptr,
+								   false,
+								   CREATE_NEW_PROCESS_GROUP | HIGH_PRIORITY_CLASS,
+								   nullptr,
+								   nullptr,
+								   &startinfo,
+								   &procinfo);
+					WaitForInputIdle(procinfo.hProcess, INFINITE);
+				},
+				wtext.c_str())
+				.detach();
 		}
 	}
 
