@@ -13,6 +13,7 @@ LazyCraft::LazyCraft() {
 }
 
 LazyCraft::~LazyCraft() {
+	DeregisterShellHookWindow(hwnd_);
 	UnregisterHotKey(hwnd_, 0);
 	KillTimer(hwnd_, 0);
 
@@ -101,6 +102,13 @@ LazyCraft* LazyCraft::build(const char* title, int width, int height, int x, int
 }
 
 std::optional<LRESULT> LazyCraft::notify(UINT msg, WPARAM wParam, LPARAM lParam) {
+	static UINT shmsg = RegisterWindowMessage("SHELLHOOK");
+	if (msg == shmsg) {
+		printf("WM_SHELLHOOKMESSAGE: %#llx %#llx\n", wParam, lParam);
+		HSHELL_GETMINRECT;
+		return std::nullopt;
+	}
+
 	switch (msg) {
 		case WM_MOUSEACTIVATE: {
 			return MA_NOACTIVATE;
@@ -145,6 +153,7 @@ std::optional<LRESULT> LazyCraft::notify(UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 	}
+
 	return std::nullopt;
 }
 
@@ -193,23 +202,32 @@ void LazyCraft::configure() {
 				__LINE__,
 				GetLastError());
 	}
+
+	if (!RegisterShellHookWindow(hwnd_)) {
+		fprintf(stderr,
+				"%s#%d RegisterShellHookWindow(hwnd_): failure for %lu\n",
+				__FILE__,
+				__LINE__,
+				GetLastError());
+	}
 }
 
 void LazyCraft::render() {
+	RECT client{};
+	GetClientRect(hwnd_, &client);
+	const ImRect rc(client.left, client.top, client.right, client.bottom);
+	ImGui::GetBackgroundDrawList()->AddImage(texture_Background, rc.Min, rc.Max);
+
 	const auto flag = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoFocusOnAppearing |
 					  ImGuiWindowFlags_NoBringToFrontOnFocus;
+
 	ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
 	ImGui::SetNextWindowBgAlpha(0);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-	ImGui::Begin("Background", nullptr, flag);
-	auto	   w	  = ImGui::GetCurrentWindow();
-	auto	   canvas = w->DrawList;
-	const auto rc	  = w->InnerRect;
-
-	canvas->AddImage(texture_Background, rc.Min, rc.Max);
+	ImGui::Begin("LazyCraft.Main", nullptr, flag);
 
 	if (statusbar.prepare()) {
 		statusbar.render();
@@ -221,7 +239,6 @@ void LazyCraft::render() {
 		ISearchEngine();
 	}
 
-	w->BeginOrderWithinContext = -1;
 	ImGui::End();
 	ImGui::PopStyleVar(2);
 }

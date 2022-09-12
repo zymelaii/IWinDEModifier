@@ -7,6 +7,7 @@ list(APPEND SOURCE_FILES ${UTILS_FILES})
 include_directories(.)
 
 add_executable(${UTIL_NAME} ${SOURCE_FILES})
+add_dependencies(${UTIL_NAME} lctrap)
 
 target_link_libraries(${UTIL_NAME} PRIVATE tinyico imgui-dx11-static)
 

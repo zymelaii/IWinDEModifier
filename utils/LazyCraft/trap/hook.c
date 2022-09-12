@@ -5,7 +5,7 @@ HHOOK	  hhook = NULL;
 HINSTANCE hInst = NULL;
 
 LRESULT CALLBACK LazyCraftCBTHookProc(int code, WPARAM wParam, LPARAM lParam) {
-	printf("CBT {\"code\": %d, \"wParam\": %llu, \"lParam\": %lld}\n", code, wParam, lParam);
+	printf("CBT {\"code\": %d, \"wParam\": %#llx, \"lParam\": %#llx}\n", code, wParam, lParam);
 
 	if (code < 0) return CallNextHookEx(0, code, wParam, lParam);
 
@@ -36,7 +36,8 @@ LRESULT CALLBACK LazyCraftCBTHookProc(int code, WPARAM wParam, LPARAM lParam) {
 }
 
 void LazyCraftCBTHook() {
-	hhook = SetWindowsHookEx(WH_CBT, LazyCraftCBTHookProc, hInst, 0);
+	// hhook = SetWindowsHookEx(WH_CBT, LazyCraftCBTHookProc, hInst, 0);
+	hhook = SetWindowsHookEx(WH_SHELL, LazyCraftCBTHookProc, hInst, 0);
 }
 
 void LazyCraftCBTUnhook() {

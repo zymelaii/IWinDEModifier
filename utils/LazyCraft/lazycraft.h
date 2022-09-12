@@ -29,7 +29,7 @@ private:
 	std::vector<QuickLaunchItem> QuickLaunchs{};
 	bool						 toggle_se{false};
 	UINT_PTR					 timer{};
-	// HMODULE						 hdlhook = nullptr;
+	HMODULE						 hdlhook = nullptr;
 
 	StatusBar statusbar;
 
