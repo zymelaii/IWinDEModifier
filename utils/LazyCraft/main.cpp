@@ -2,6 +2,7 @@
 #include <cmath>
 #include <algorithm>
 #include <regex>
+#include <thread>
 #include <compare>
 #include <any>
 #include <memory>
@@ -49,12 +50,12 @@ void LaunchOnStartup() {
 		LR"("C:\Program Files (x86)\Parblo\parbloDriver.exe")",
 		LR"("E:\PortableApp\Everything\Everything.exe" -startup)",
 		LR"("E:\PortableApp\Snipaste\Snipaste.exe")",
-		LR"("E:\PortableApp\Console\Console.exe")",
+		LR"("E:\PortableApp\ConEmu\ConEmu64.exe")",
 	};
 	for (auto& prog : startup) {
 		STARTUPINFOW		startinfo{};
 		PROCESS_INFORMATION procinfo{};
-		startinfo.wShowWindow = SW_HIDE | SW_FORCEMINIMIZE;
+		startinfo.wShowWindow = SW_HIDE;
 		startinfo.dwFlags	  = STARTF_USESHOWWINDOW;
 		startinfo.cb		  = sizeof(STARTUPINFOW);
 		wchar_t cmdline[MAX_PATH]{};
@@ -73,15 +74,37 @@ void LaunchOnStartup() {
 	}
 }
 
-#include <thread>
+void StartIconicProxy(LazyCraft* host) {
+	HANDLE process = GetCurrentProcess();
+	auto   cbenum  = [](HWND hWnd, LPARAM lParam) -> BOOL {
+		   auto host = reinterpret_cast<LazyCraft*>(lParam);
+		   if (IsWindowVisible(hWnd) && IsIconic(hWnd)) {
+			   //    host->AddIconic(hWnd);
+			   ShowWindow(hWnd, SW_HIDE);
+		   }
+		   return true;
+	};
+	while (true) {
+		EnumWindows(cbenum, reinterpret_cast<LPARAM>(host));
+		DWORD status = WaitForSingleObject(process, 10);
+		if (status == WAIT_OBJECT_0) {
+			break;
+		}
+	}
+}
+
 int main(int argc, char const* argv[]) {
-	if (FindWindow("IWinDEModifier::LazyCraft.MainWindow", nullptr) != nullptr) {
+	const auto __class__ = "IWinDEModifier::LazyCraft.MainWindow";
+	if (FindWindow(__class__, nullptr) != nullptr) {
 		return 0;
 	}
 
 	SetDirToModulePath();
-	std::thread(LaunchOnStartup).detach();
 
 	auto app = std::make_unique<LazyCraft>();
+
+	std::thread(LaunchOnStartup).detach();
+	std::thread(StartIconicProxy, app.get()).detach();
+
 	return app->lazy_exec(false);
 }

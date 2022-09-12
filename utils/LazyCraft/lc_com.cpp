@@ -2,12 +2,86 @@
 
 #include "lazycraft.h"
 
+bool LazyCraft::IStatusBar() {
+	auto w = ImGui::GetCurrentWindow();
+	if (w->SkipItems) return false;
+
+	auto	   canvas = w->DrawList;
+	const auto id	  = w->GetID("LazyCraft.StatusBar");
+	const auto rc	  = w->Rect();
+
+	const ImRect rcbar{0, 0, rc.Max.x, 20};
+	ImGui::ItemSize(rcbar.GetSize());
+	if (!ImGui::ItemAdd(rcbar, id)) return false;
+
+	SYSTEM_POWER_STATUS power_status{};
+	SYSTEMTIME			time{};
+	GetSystemPowerStatus(&power_status);
+	GetLocalTime(&time);
+
+	char status[64]{}, buffer[32]{};
+	auto bgcol = ImColor(128, 128, 128);
+	canvas->AddRectFilled(rcbar.Min, rcbar.Max, bgcol, 4, ImDrawFlags_RoundCornersBottom);
+
+	float offset = rcbar.Max.x - ImGui::GetStyle().ItemSpacing.x;
+
+	if (power_status.BatteryLifePercent != 0xff) {	 //!< draw battary icon
+		const float	 unit = rcbar.GetSize().y * 0.54 / 3;
+		const ImVec2 body(unit * 5, unit * 3);
+		const ImVec2 head(unit, body.y * 0.6);
+		float		 posx = rcbar.Max.x - ImGui::GetStyle().ItemSpacing.x - (body.x + head.x);
+		float		 posy = (rcbar.Max.y - body.y) / 2;
+		const auto	 col  = ImColor(255, 255, 255);
+		canvas->AddRectFilled(
+			{posx, posy}, {posx + body.x, posy + body.y}, col, 2, ImDrawFlags_RoundCornersAll);
+		posx += body.x;
+		posy += (body.y - head.y) / 2;
+		canvas->AddRectFilled({posx - 1, posy},
+							  {posx + head.x, posy + head.y},
+							  col,
+							  2,
+							  ImDrawFlags_RoundCornersRight);
+		sprintf_s(buffer, "%d", power_status.BatteryLifePercent);
+
+		ImGui::PushFont(font_charge->get());
+		auto size = ImGui::CalcTextSize(buffer);
+		posx	  = rcbar.Max.x - ImGui::GetStyle().ItemSpacing.x - (body.x + head.x);
+		posx += (body.x - size.x) / 2;
+		posy = (rcbar.Max.y - body.y) / 2;
+		posy += (body.y - size.y) / 2;
+		canvas->AddText(
+			ImGui::GetFont(), ImGui::GetFontSize(), {posx, posy}, ImColor(0, 0, 0), buffer);
+		ImGui::PopFont();
+
+		offset -= ImGui::GetStyle().ItemSpacing.x + body.x + head.x;
+	}
+
+	sprintf_s(buffer,
+			  "%4d-%02d-%02d %02d:%02d:%02d",
+			  time.wYear,
+			  time.wMonth,
+			  time.wDay,
+			  time.wHour,
+			  time.wMinute,
+			  time.wSecond);
+
+	ImGui::PushFont(font_ascii->get());
+	auto	   size = ImGui::CalcTextSize(buffer);
+	float	   posx = offset - size.x;
+	float	   posy = (rcbar.Max.y - size.y) / 2;
+	const auto col	= ImColor(240, 240, 240);
+	canvas->AddText(ImGui::GetFont(), ImGui::GetFontSize(), {posx, posy}, col, buffer);
+	ImGui::PopFont();
+
+	return true;
+}
+
 bool LazyCraft::IQuickLaunch() {
 	auto w = ImGui::GetCurrentWindow();
 	if (w->SkipItems) return false;
 
 	auto	   canvas = w->DrawList;
-	const auto id	  = w->GetID("LazyCraft#QuickLaunch");
+	const auto id	  = w->GetID("LazyCraft.QuickLaunch");
 	const auto rc	  = w->Rect();
 
 	constexpr std::tuple params{50.00f, 24.00f, 8.00f};
@@ -18,7 +92,7 @@ bool LazyCraft::IQuickLaunch() {
 
 	if (nItem <= 0) return false;
 
-	int	   selection{-255};
+	int	   selection{-255}; 
 	float  width{}, height{}, middle{}, rounding{}, partion{}, posy{};
 	ImRect view{};
 
@@ -44,19 +118,23 @@ bool LazyCraft::IQuickLaunch() {
 	bool pressed = ImGui::ButtonBehavior(view, id, &hovered, nullptr);
 	calcParams();
 
-	//! 画个盘盘先
+	if (hovered && ImGui::GetIO().MouseDown[0]) {
+		toggle_se = false;
+		ImGui::SetActiveID(id, w);
+		ImGui::SetFocusID(id, w);
+	}
+
 	const ImRect viewex{view.Min.x - 16, view.Min.y, view.Max.x + 16, view.Max.y};
 	canvas->PathRect(viewex.Min, viewex.Max, rounding);
 	canvas->AddConvexPolyFilled(canvas->_Path.Data, canvas->_Path.Size, col_inner);
 	canvas->PathStroke(col_border, ImDrawFlags_Closed, 2.00f);
 
-	//! 渲染应用图标
 	for (int i = 0; i < nItem; ++i) {
 		const auto [szItem, spacing, nVerticalPart] = params;
 		const auto x = view.Min.x + spacing / 2 + i * (szItem + spacing), y = posy + spacing / 2;
 
-		const auto k   = 1.00 / sqrt(2 * 3.1415926535);
-		float	   rel = k * exp(-pow(i - selection, 2) * 0.5);
+		const auto	k	= 1.00 / sqrt(2 * 3.1415926535);
+		const float rel = k * exp(-pow(i - selection, 2) * 0.5);
 
 		ImRect box{x, y, x + szItem, y + szItem};
 		box.Min.x -= spacing * 0.8 * rel;
@@ -69,63 +147,157 @@ bool LazyCraft::IQuickLaunch() {
 			box.Max.y += spacing * 0.5 * rel;
 		}
 
-		canvas->AddImage(QuickLaunchs[i].second, box.Min, box.Max);
+		canvas->AddImage(std::get<2>(QuickLaunchs[i]), box.Min, box.Max);
 	}
 
-	//! 绘制选中应用的标签
-	if (selection >= 0 && selection < nItem) {
-		const auto [szItem, spacing, nVerticalPart] = params;
-		const auto x = view.Min.x + spacing / 2 + selection * (szItem + spacing),
-				   y = posy + spacing / 2;
-		const ImRect box{x, y, x + szItem, y + szItem};
+	ImGui::SetMouseCursor(hovered ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_Arrow);
 
-		const auto& wtext{QuickLaunchs[selection % QuickLaunchs.max_size()].first};
-		std::wstring_convert<std::codecvt_utf8<wchar_t>> conv{};
+	if (!(selection >= 0 && selection < nItem)) return true;
 
-		std::string text{conv.to_bytes(wtext)};
+	const auto [szItem, spacing, nVerticalPart] = params;
+	const auto x = view.Min.x + spacing / 2 + selection * (szItem + spacing),
+			   y = posy + spacing / 2;
+	const ImRect box{x, y, x + szItem, y + szItem};
 
-		const auto	 size	  = ImGui::CalcTextSize(text.c_str());
-		const auto	 rounding = 8.00f;
-		const ImVec2 tip{x + szItem / 2, y - spacing * 1.32f};
-		const ImVec2 oritext{tip.x - size.x / 2, tip.y - size.y - rounding * 1.6f};
-		const ImRect descbox{oritext.x - rounding,
-							 oritext.y - rounding,
-							 oritext.x + size.x + rounding,
-							 oritext.y + size.y + rounding};
+	const auto& [title, execpath, unused] = QuickLaunchs[selection];
 
-		canvas->AddRectFilled(descbox.Min, descbox.Max, 0x80ffffff, rounding);
-		canvas->AddCircleFilled(tip, rounding * 0.36f, 0x80ffffff);
+	ImGui::PushFont(font_ascii->get());
+	const auto	 size	= ImGui::CalcTextSize(title.c_str());
+	const auto	 roundw = 8.00f;
+	const ImVec2 tip{x + szItem / 2, y - spacing * 1.32f};
+	const ImVec2 oritext{tip.x - size.x / 2, tip.y - size.y - roundw * 1.6f};
+	const ImRect descbox{oritext.x - roundw,
+						 oritext.y - roundw,
+						 oritext.x + size.x + roundw,
+						 oritext.y + size.y + roundw};
 
-		canvas->AddText(ImGui::GetFont(), ImGui::GetFontSize(), oritext, 0xff000000, text.c_str());
+	canvas->AddRectFilled(descbox.Min, descbox.Max, 0x80ffffff, roundw);
+	canvas->AddCircleFilled(tip, roundw * 0.36f, 0x80ffffff);
 
-		if (pressed) {
-			std::thread(
-				[](const wchar_t* prog) {
-					STARTUPINFOW		startinfo{};
-					PROCESS_INFORMATION procinfo{};
-					startinfo.cb = sizeof(STARTUPINFOW);
-					CreateProcessW(prog,
-								   nullptr,
-								   nullptr,
-								   nullptr,
-								   false,
-								   CREATE_NEW_PROCESS_GROUP | HIGH_PRIORITY_CLASS,
-								   nullptr,
-								   nullptr,
-								   &startinfo,
-								   &procinfo);
-					WaitForInputIdle(procinfo.hProcess, INFINITE);
-				},
-				wtext.c_str())
-				.detach();
+	canvas->AddText(ImGui::GetFont(), ImGui::GetFontSize(), oritext, 0xff000000, title.c_str());
+	ImGui::PopFont();
+
+	if (pressed) {
+		std::thread(
+			[](const wchar_t* prog) {
+				STARTUPINFOW		startinfo{};
+				PROCESS_INFORMATION procinfo{};
+				startinfo.cb = sizeof(STARTUPINFOW);
+				CreateProcessW(prog,
+							   nullptr,
+							   nullptr,
+							   nullptr,
+							   false,
+							   CREATE_NEW_PROCESS_GROUP | HIGH_PRIORITY_CLASS,
+							   nullptr,
+							   nullptr,
+							   &startinfo,
+							   &procinfo);
+				WaitForInputIdle(procinfo.hProcess, INFINITE);
+			},
+			execpath.c_str())
+			.detach();
+	}
+
+	return true;
+}
+
+bool LazyCraft::ISearchEngineClassic() {
+	static char buffer[1024]{};
+	const auto	strid = "LazyCraft.SearchEngine";
+
+	ImGui::SetKeyboardFocusHere();
+	ImGui::InputTextEx(strid, "LazyCraft Search Engine...", buffer, 1024, ImVec2(512, 0), 0);
+
+	const auto this_id = ImGui::GetCurrentWindow()->GetID(strid);
+
+	if (ImGui::GetFocusID() == this_id) {
+		if (ImGui::GetIO().KeysDown[ImGuiKey_Enter]) {
+			HINSTANCE inst =
+				ShellExecute(nullptr, nullptr, buffer, nullptr, nullptr, SW_SHOWDEFAULT);
+			if (reinterpret_cast<intptr_t>(inst) <= 32) {
+				printf("caught failure on ShellExecute, with %lld\n",
+					   reinterpret_cast<intptr_t>(inst));
+			} else {
+				toggle_se = false;
+			}
+		}
+		if (ImGui::GetIO().KeysDown[ImGuiKey_Escape]) {
+			toggle_se = false;
 		}
 	}
 
-	if (hovered) {
-		SetCursor(LoadCursor(nullptr, IDC_HAND));
-	} else {
-		SetCursor(LoadCursor(nullptr, IDC_ARROW));
+	if (!toggle_se) {
+		RECT client{};
+		GetClientRect(hwnd_, &client);
+		InvalidateRect(hwnd_, &client, false);
+		buffer[0] = '\0';
 	}
+
+	return true;
+}
+
+bool LazyCraft::ISearchEngine() {
+	return ISearchEngineClassic();
+
+	auto w = ImGui::GetCurrentWindow();
+	if (w->SkipItems) return false;
+
+	static char input[256]{};
+	auto&		g	   = *GImGui;
+	auto		canvas = w->DrawList;
+	auto&		io	   = ImGui::GetIO();
+
+	const auto	 id = w->GetID("LazyCraft.SearchEngine");
+	const ImVec2 szinput{128, 16};
+
+	const ImVec2 origin{300, 300};
+	const ImRect rcinput{origin.x, origin.y, origin.x + szinput.x, origin.y + szinput.y};
+
+	ImGui::ItemSize(rcinput);
+	if (!ImGui::ItemAdd(rcinput, id, &rcinput, ImGuiItemFlags_Inputable)) return false;
+
+	const auto hovered = ImGui::ItemHoverable(rcinput, id);
+	if (hovered) {
+		g.MouseCursor = ImGuiMouseCursor_TextInput;
+	}
+
+	auto	   state		   = ImGui::GetInputTextState(id);
+	const auto should_activate = hovered && io.MouseClicked[0];
+	if (g.ActiveId != id && should_activate) {
+		state = &g.InputTextState;
+		state->CursorAnimReset();
+
+		const auto len = strlen(input);
+		state->InitialTextA.resize(len + 1);
+		memcpy_s(state->InitialTextA.Data, len + 1, input, len + 1);
+
+		const char* endpoint = nullptr;
+		state->ID			 = id;
+		state->TextW.resize(len + 1);
+		state->TextA.resize(0);
+		state->TextAIsValid = false;
+		state->CurLenW		= ImTextStrFromUtf8(state->TextW.Data, len, input, nullptr, &endpoint);
+		state->CurLenA		= static_cast<int>(endpoint - input);
+
+		// state->ScrollX = 0.0f;
+		// stb_textedit_initialize_state(&state->Stb, true);
+
+		ImGui::SetActiveID(id, w);
+		ImGui::SetFocusID(id, w);
+		ImGui::FocusWindow(w);
+
+		g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir_Left) | (1 << ImGuiDir_Right);
+		ImGui::SetActiveIdUsingKey(ImGuiKey_Escape);
+		ImGui::SetActiveIdUsingKey(ImGuiKey_Home);
+		ImGui::SetActiveIdUsingKey(ImGuiKey_End);
+	}
+
+	if (g.ActiveId == id && !state) {
+		ImGui::ClearActiveID();
+	}
+
+	canvas->AddText(g.Font, g.FontSize, origin, ImGui::GetColorU32(ImGuiCol_Text), input);
 
 	return true;
 }

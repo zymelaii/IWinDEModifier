@@ -1,0 +1,1 @@
+add_library(tinyico tinyico.h tinyico.c)
