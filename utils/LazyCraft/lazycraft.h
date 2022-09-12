@@ -1,6 +1,7 @@
 #include "utils/proxy/linkproxy.h"
 #include "utils/proxy/fontproxy.h"
 #include "utils/texture.h"
+#include "com/status_bar.h"
 
 #include <iostream>
 #include <vector>
@@ -16,6 +17,7 @@
 
 using Proxy::LinkProxy;
 using Proxy::FontProxy;
+using com::impl::StatusBar;
 
 class LazyCraft : public ImGuiApplication {
 private:
@@ -27,7 +29,9 @@ private:
 	std::vector<QuickLaunchItem> QuickLaunchs{};
 	bool						 toggle_se{false};
 	UINT_PTR					 timer{};
-	HMODULE						 hdlhook = nullptr;
+	// HMODULE						 hdlhook = nullptr;
+
+	StatusBar statusbar;
 
 public:	  //!< lc_main.cpp
 	LazyCraft();
@@ -40,8 +44,7 @@ public:	  //!< lc_main.cpp
 	void				   configure() override;
 	void				   render() override;
 
-public:	  //!< lc_com.cpp
-	bool IStatusBar();
+public:
 	bool IQuickLaunch();
 	bool ISearchEngine();
 	bool ISearchEngineClassic();

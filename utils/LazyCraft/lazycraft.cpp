@@ -101,7 +101,6 @@ LazyCraft* LazyCraft::build(const char* title, int width, int height, int x, int
 }
 
 std::optional<LRESULT> LazyCraft::notify(UINT msg, WPARAM wParam, LPARAM lParam) {
-	static HWND prevForeground = nullptr;
 	switch (msg) {
 		case WM_MOUSEACTIVATE: {
 			return MA_NOACTIVATE;
@@ -153,15 +152,15 @@ void LazyCraft::configure() {
 	ImVec2 size{};
 	LoadTextureFromFile(pd3dDevice_, R"(assets\image.png)", &texture_Background, &size);
 
-	LinkProxy proxy;
-	fs::path  dir(LR"(C:\Users\Public\Desktop)");
+	auto	 proxy = LinkProxy::require();
+	fs::path dir(LR"(C:\Users\Public\Desktop)");
 	for (auto& item : fs::directory_iterator(dir)) {
 		if (!item.is_regular_file()) continue;
 		const auto& path = item.path();
 		if (path.extension() != L".lnk") continue;
 		char buffer[MAX_PATH]{};
 		auto lnkpath = path.generic_wstring();
-		if (proxy.query(lnkpath.data(), buffer, MAX_PATH)) {
+		if (proxy->query(lnkpath.data(), buffer, MAX_PATH)) {
 			wchar_t execpath[MAX_PATH];
 			MultiByteToWideChar(CP_ACP, 0, buffer, -1, execpath, MAX_PATH);
 			auto texture = LoadIconFromModule(pd3dDevice_, execpath);
@@ -174,13 +173,25 @@ void LazyCraft::configure() {
 	font_charge->add(R"(assets\DroidSans.ttf)", 12.0f, {'0', '9', 0})->build(pd3dDevice_);
 	font_ascii->add(R"(assets\DroidSans.ttf)", 16.0f)->build(pd3dDevice_);
 
+	statusbar.setBatteryCapacityFont(font_charge->get());
+	statusbar.setTextFont(font_ascii->get());
+
 	toggle(false);
 
 	if (!RegisterHotKey(hwnd_, 0, MOD_ALT, VK_SPACE)) {
-		// printf("failure as %lu\n", GetLastError());
+		fprintf(stderr,
+				"%s#%d RegisterHotKey(hwnd_, 0, MOD_ALT, VK_SPACE): failure for %lu\n",
+				__FILE__,
+				__LINE__,
+				GetLastError());
 	}
+
 	if (!SetTimer(hwnd_, 0, 1000, nullptr)) {
-		// printf("failure as %lu\n", GetLastError());
+		fprintf(stderr,
+				"%s#%d SetTimer(hwnd_, 0, 1000, nullptr): failure for %lu\n",
+				__FILE__,
+				__LINE__,
+				GetLastError());
 	}
 }
 
@@ -196,11 +207,13 @@ void LazyCraft::render() {
 	ImGui::Begin("Background", nullptr, flag);
 	auto	   w	  = ImGui::GetCurrentWindow();
 	auto	   canvas = w->DrawList;
-	const auto rc	  = w->Rect();
+	const auto rc	  = w->InnerRect;
 
 	canvas->AddImage(texture_Background, rc.Min, rc.Max);
 
-	IStatusBar();
+	if (statusbar.prepare()) {
+		statusbar.render();
+	}
 
 	IQuickLaunch();
 

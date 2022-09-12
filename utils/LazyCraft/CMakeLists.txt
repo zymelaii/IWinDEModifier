@@ -1,7 +1,7 @@
 set(UTIL_NAME LazyCraft)
 
 file(GLOB SOURCE_FILES *.cpp)
-file(GLOB UTILS_FILES utils/proxy/*.cpp utils/*.cpp)
+file(GLOB UTILS_FILES utils/proxy/*.cpp utils/*.cpp com/*.cpp)
 list(APPEND SOURCE_FILES ${UTILS_FILES})
 
 include_directories(.)

@@ -7,6 +7,7 @@ namespace Proxy {
 
 struct FontProxy {
 	static auto require() -> std::unique_ptr<FontProxy>;
+
 	FontProxy*	add(const char* fontpath, float size, const ImWchar* glyph_ranges);
 	FontProxy*	add(const char* fontpath, float size,
 					const std::initializer_list<ImWchar>&& ranges = {});
