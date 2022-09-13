@@ -275,6 +275,10 @@ int ImGuiApplication::lazy_exec(bool visible) {
 			prepare();
 			render();
 			present();
+
+			if (msg.message == WM_KEYDOWN) {
+				fprintf(stderr, "key down: %llu\n", msg.wParam);
+			}
 		}
 	}
 
