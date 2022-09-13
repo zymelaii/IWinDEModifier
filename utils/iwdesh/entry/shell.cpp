@@ -8,8 +8,10 @@ DEF_IWDESH_ENTRY(shell_SwitchDesktop, argc, argv) {
 
 	if (auto hr = SHSetKnownFolderPath(FOLDERID_Desktop, 0, nullptr, argv[0]); SUCCEEDED(hr)) {
 		LPITEMIDLIST list = nullptr;
-		SHGetKnownFolderIDList(FOLDERID_Desktop, 0, nullptr, &list);
-		SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_FLUSH | SHCNF_IDLIST, list, nullptr);
+		if (SHGetKnownFolderIDList(FOLDERID_Desktop, 0, nullptr, &list); list != nullptr) {
+			SHChangeNotify(SHCNE_UPDATEDIR, SHCNF_FLUSH | SHCNF_IDLIST, list, nullptr);
+			ILFree(list);
+		}
 	} else {
 		return 1;
 	}
