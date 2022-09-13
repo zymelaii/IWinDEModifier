@@ -53,6 +53,32 @@ void LazyCraft::toggle(bool active) {
 	AttachThreadInput(from, to, false);
 }
 
+void LazyCraft::cbshellhook(WPARAM wParam, LPARAM lParam) {
+	fprintf(stderr, "WM_SHELLHOOKMESSAGE: %#llx %#llx\n", wParam, lParam);
+	switch (wParam) {
+		case HSHELL_APPCOMMAND: {
+			auto proxy = VolumeProxy::require();
+			switch (GET_APPCOMMAND_LPARAM(lParam)) {
+				case APPCOMMAND_VOLUME_MUTE: {
+					static bool is_mute = false;
+					is_mute				= !is_mute;
+					proxy->mute(is_mute);
+					break;
+				}
+				case APPCOMMAND_VOLUME_DOWN: {
+					proxy->set(proxy->get() - 1);
+					break;
+				}
+				case APPCOMMAND_VOLUME_UP: {
+					proxy->set(proxy->get() + 1);
+					break;
+				}
+			}
+			break;
+		}
+	}
+}
+
 LazyCraft* LazyCraft::build(const char* title, int width, int height, int x, int y) {
 	ImGui_ImplWin32_EnableDpiAwareness();
 
@@ -102,11 +128,9 @@ LazyCraft* LazyCraft::build(const char* title, int width, int height, int x, int
 }
 
 std::optional<LRESULT> LazyCraft::notify(UINT msg, WPARAM wParam, LPARAM lParam) {
-	static UINT shmsg = RegisterWindowMessage("SHELLHOOK");
-	if (msg == shmsg) {
-		printf("WM_SHELLHOOKMESSAGE: %#llx %#llx\n", wParam, lParam);
-		HSHELL_GETMINRECT;
-		return std::nullopt;
+	if (msg == WM_SHELLHOOKMESSAGE) {
+		cbshellhook(wParam, lParam);
+		return true;
 	}
 
 	switch (msg) {
@@ -161,6 +185,8 @@ void LazyCraft::configure() {
 	ImVec2 size{};
 	LoadTextureFromFile(pd3dDevice_, R"(assets\image.png)", &texture_Background, &size);
 
+	VK_F1;
+
 	auto	 proxy = LinkProxy::require();
 	fs::path dir(LR"(C:\Users\Public\Desktop)");
 	for (auto& item : fs::directory_iterator(dir)) {
@@ -181,9 +207,6 @@ void LazyCraft::configure() {
 
 	font_charge->add(R"(assets\DroidSans.ttf)", 12.0f, {'0', '9', 0})->build(pd3dDevice_);
 	font_ascii->add(R"(assets\DroidSans.ttf)", 16.0f)->build(pd3dDevice_);
-
-	statusbar.setBatteryCapacityFont(font_charge->get());
-	statusbar.setTextFont(font_ascii->get());
 
 	toggle(false);
 
@@ -209,6 +232,18 @@ void LazyCraft::configure() {
 				__FILE__,
 				__LINE__,
 				GetLastError());
+	}
+
+	{
+		auto item = std::make_unique<BatteryItem>();
+		item->setCapacityFont(font_charge->get())->setRelHeight(20);
+		statusbar.add_util(item.release(), StatusBar::Alignment::Right);
+	}
+
+	{
+		auto item = std::make_unique<DateItem>();
+		item->setFont(font_ascii->get());
+		statusbar.add_util(item.release(), StatusBar::Alignment::Right);
 	}
 }
 

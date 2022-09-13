@@ -1,7 +1,7 @@
 #include "utils/proxy/linkproxy.h"
 #include "utils/proxy/fontproxy.h"
+#include "utils/proxy/volumeproxy.h"
 #include "utils/texture.h"
-#include "com/status_bar.h"
 
 #include <iostream>
 #include <vector>
@@ -15,8 +15,13 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 
+#include "com/statusbar.h"
+#include "widget/batteryitem.h"
+#include "widget/dateitem.h"
+
 using Proxy::LinkProxy;
 using Proxy::FontProxy;
+using Proxy::VolumeProxy;
 using com::impl::StatusBar;
 
 class LazyCraft : public ImGuiApplication {
@@ -30,6 +35,7 @@ private:
 	bool						 toggle_se{false};
 	UINT_PTR					 timer{};
 	HMODULE						 hdlhook = nullptr;
+	UINT						 WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
 
 	StatusBar statusbar;
 
@@ -38,6 +44,8 @@ public:	  //!< lc_main.cpp
 	~LazyCraft();
 
 	void toggle(bool active);
+
+	void cbshellhook(WPARAM wParam, LPARAM lParam);
 
 	LazyCraft*			   build(const char* title, int width, int height, int x, int y) override;
 	std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam) override;
