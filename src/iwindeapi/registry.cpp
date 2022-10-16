@@ -105,6 +105,11 @@ auto EnumRegistryKey(HKEY item, int index) -> std::optional<std::unique_ptr<wcha
 	return {std::move(name)};
 }
 
+bool RemoveRegistryTree(HKEY parent, const wchar_t *item) {
+	IWDEM_CheckOrReturn(ERROR_SUCCESS == RegDeleteTreeW(parent, item), false);
+	return true;
+}
+
 auto GetRegistryValue(HKEY item, const wchar_t* key,
 					  std::optional<std::reference_wrapper<std::unique_ptr<uint8_t[]>>> bytes)
 	-> std::tuple<bool, uint8_t, size_t> {

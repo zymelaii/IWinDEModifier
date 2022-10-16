@@ -10,7 +10,7 @@ struct IUtility {
 	virtual const ImVec2 cursor() const = 0;
 
 	virtual bool prepare(const IUtility* parent) = 0;
-	virtual void render() const							   = 0;
+	virtual void render() const					 = 0;
 };
 
 }	// namespace com

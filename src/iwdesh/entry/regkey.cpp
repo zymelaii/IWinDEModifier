@@ -137,6 +137,16 @@ DEF_IWDESH_ENTRY(regkey_list, argc, argv) {
 	return 0;
 }
 
+DEF_IWDESH_ENTRY(regkey_rm, argc, argv) {
+	const bool global = QueryCommandFlags(argc, argv, L"-g", L"--global");
+	const HKEY root	  = global ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
+	for (int i = 0; i < argc; ++i) {
+		if (argv[i][0] == 0) continue;
+		RemoveRegistryTree(root, argv[i]);
+	}
+	return 0;
+}
+
 DEF_IWDESH_ENTRY(regkey_acl, argc, argv) {
 	const bool			 global = QueryCommandFlags(argc, argv, L"-g", L"--global");
 	const bool			 remove = QueryCommandFlags(argc, argv, L"-r", L"--remove");
@@ -251,6 +261,8 @@ DEF_IWDESH_ENTRY(regkey, argc, argv) {
 		return IWDESHENTRY(regkey_query)(argc - 1, argv + 1);
 	} else if (wcscmp(argv[0], L"list") == 0) {
 		return IWDESHENTRY(regkey_list)(argc - 1, argv + 1);
+	} else if (wcscmp(argv[0], L"rm") == 0) {
+		return IWDESHENTRY(regkey_rm)(argc - 1, argv + 1);
 	} else if (wcscmp(argv[0], L"acl") == 0) {
 		return IWDESHENTRY(regkey_acl)(argc - 1, argv + 1);
 	} else {

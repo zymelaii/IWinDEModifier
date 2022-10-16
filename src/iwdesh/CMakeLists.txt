@@ -19,6 +19,8 @@ target_link_options(${UTIL_NAME} PRIVATE --static)
 set_target_properties(${UTIL_NAME} PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${UTIL_NAME})
 
+add_dependencies(${UTIL_NAME} ${UTIL_NAME}-core)
+
 add_custom_command(TARGET ${UTIL_NAME}-core POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy
 		$<TARGET_FILE:${UTIL_NAME}-core>

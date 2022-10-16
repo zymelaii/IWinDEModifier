@@ -36,8 +36,8 @@ LRESULT CALLBACK LazyCraftCBTHookProc(int code, WPARAM wParam, LPARAM lParam) {
 }
 
 void LazyCraftCBTHook() {
-	// hhook = SetWindowsHookEx(WH_CBT, LazyCraftCBTHookProc, hInst, 0);
-	hhook = SetWindowsHookEx(WH_SHELL, LazyCraftCBTHookProc, hInst, 0);
+	hhook = SetWindowsHookEx(WH_CBT, LazyCraftCBTHookProc, hInst, 0);
+	// hhook = SetWindowsHookEx(WH_SHELL, LazyCraftCBTHookProc, hInst, 0);
 }
 
 void LazyCraftCBTUnhook() {

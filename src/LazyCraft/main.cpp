@@ -79,7 +79,7 @@ void StartIconicProxy(LazyCraft* host) {
 	auto   cbenum  = [](HWND hWnd, LPARAM lParam) -> BOOL {
 		   auto host = reinterpret_cast<LazyCraft*>(lParam);
 		   if (IsWindowVisible(hWnd) && IsIconic(hWnd)) {
-			   //    host->AddIconic(hWnd);
+			   // host->AddIconic(hWnd);
 			   ShowWindow(hWnd, SW_HIDE);
 		   }
 		   return true;
@@ -103,8 +103,18 @@ int main(int argc, char const* argv[]) {
 
 	auto app = std::make_unique<LazyCraft>();
 
-	std::thread(LaunchOnStartup).detach();
-	std::thread(StartIconicProxy, app.get()).detach();
+	bool is_debug = false;
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--debug") == 0) {
+			is_debug = true;
+			break;
+		}
+	}
+
+	if (!is_debug) {
+		std::thread(LaunchOnStartup).detach();
+		std::thread(StartIconicProxy, app.get()).detach();
+	}
 
 	return app->lazy_exec(false);
 }

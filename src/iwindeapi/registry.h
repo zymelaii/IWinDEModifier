@@ -75,6 +75,14 @@ std::optional<std::unique_ptr<wchar_t[]>> EnumRegistrySubItem(HKEY item, int ind
 std::optional<std::unique_ptr<wchar_t[]>> EnumRegistryKey(HKEY item, int index);
 
 /*!
+ * \brief remove registry tree
+ * 
+ * \param parent parent item handle, not null
+ * \param item target item path, not null (expected)
+ */
+bool RemoveRegistryTree(HKEY parent, const wchar_t *item);
+
+/*!
  * \brief get registry key value
  *
  * \param item handle of target item

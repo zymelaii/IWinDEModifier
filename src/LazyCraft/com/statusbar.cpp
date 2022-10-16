@@ -39,23 +39,25 @@ bool StatusBar::prepare(const IUtility* parent) {
 
 		const auto ubb = util->rect();
 		align_		   = align;
+
+		auto prev_cursor = cursor();
+
 		switch (align_) {
 			case Alignment::Left: {
 				cursor_pos_[0].x += spacing;
 				cursor_pos_[0].y = bb.Min.y + (bb.GetHeight() - ubb.GetHeight()) * 0.5;
+				ok = util->prepare(this);
+				cursor_pos_[0].x += ubb.GetWidth();
+				if (!ok) cursor_pos_[0] = prev_cursor;
 				break;
 			}
 			case Alignment::Right: {
 				cursor_pos_[1].x -= spacing + ubb.GetWidth();
 				cursor_pos_[1].y = bb.Min.y + (bb.GetHeight() - ubb.GetHeight()) * 0.5;
+				ok = util->prepare(this);
+				if (!ok) cursor_pos_[1] = prev_cursor;
 				break;
 			}
-		}
-
-		ok = util->prepare(this);
-
-		if (align_ == Alignment::Left) {
-			cursor_pos_[0].x += ubb.GetWidth();
 		}
 	}
 

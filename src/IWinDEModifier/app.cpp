@@ -10,10 +10,9 @@
 #include <iostream>
 
 #include <backend.h>
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
 
-#include <iwindeapi/registry.h>
+#include "iwindeapi/registry.h"
+#include "utils/texture.h"
 #include "widgets.h"
 
 class IWinDEModifierApp : public ImGuiApplication {
@@ -330,8 +329,9 @@ public:	  //!< Components
 	}
 
 public:	  //!< Main Program
-	IWinDEModifierApp(const char* title, int width, int height)
-		: ImGuiApplication(title, width, height) {}
+	IWinDEModifierApp(const char* title, int width, int height) {
+		build(title, width, height, 0, 0);
+	}
 
 	std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam) override {
 		if (msg == WM_GETMINMAXINFO) {
@@ -495,5 +495,5 @@ public:	  //!< Main Program
 
 int main(int argc, char* argv[]) {
 	auto app = std::make_unique<IWinDEModifierApp>("IWinDEModifier", 800, 600);
-	return app->exec();
+	return app->lazy_exec();
 }

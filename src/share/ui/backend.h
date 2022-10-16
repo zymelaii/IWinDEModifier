@@ -8,13 +8,6 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
 															 LPARAM lParam);
 
-bool LoadTextureFromMemory(ID3D11Device* device, const uint8_t* data, size_t width, size_t height,
-						   ID3D11ShaderResourceView** texture);
-
-bool LoadTextureFromFile(ID3D11Device* device, const char* filename,
-						 ID3D11ShaderResourceView** texture, ImVec2* size);
-
-
 class ImGuiApplication {
 public:	  //! backend support
 	static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

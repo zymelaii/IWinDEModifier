@@ -34,12 +34,11 @@ private:
 	std::vector<QuickLaunchItem> QuickLaunchs{};
 	bool						 toggle_se{false};
 	UINT_PTR					 timer{};
-	HMODULE						 hdlhook = nullptr;
-	UINT						 WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
+	HMODULE						 hdlhook			 = nullptr;
+	const UINT					 WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
+	StatusBar					 statusbar;
 
-	StatusBar statusbar;
-
-public:	  //!< lc_main.cpp
+public:
 	LazyCraft();
 	~LazyCraft();
 

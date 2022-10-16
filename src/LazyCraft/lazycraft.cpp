@@ -185,8 +185,6 @@ void LazyCraft::configure() {
 	ImVec2 size{};
 	LoadTextureFromFile(pd3dDevice_, R"(assets\image.png)", &texture_Background, &size);
 
-	VK_F1;
-
 	auto	 proxy = LinkProxy::require();
 	fs::path dir(LR"(C:\Users\Public\Desktop)");
 	for (auto& item : fs::directory_iterator(dir)) {
