@@ -1,7 +1,7 @@
 #pragma once
 
-#include <imgui/imgui_internal.h>
-#include <imgui/imgui.h>
+#include <share/ui/imgui/imgui_internal.h>
+#include <share/ui/imgui/imgui.h>
 
 namespace com {
 

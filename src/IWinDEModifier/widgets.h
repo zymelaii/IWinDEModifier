@@ -1,5 +1,5 @@
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
+#include <share/ui/imgui/imgui.h>
+#include <share/ui/imgui/imgui_internal.h>
 
 namespace ImGui {
 

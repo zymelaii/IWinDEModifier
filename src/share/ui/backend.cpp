@@ -1,10 +1,12 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-#include "backend.h"
+#include <windows.h>
 #include <basetsd.h>
 #include <errhandlingapi.h>
 #include <winerror.h>
 #include <winuser.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "backend.h"
 
 bool ImGuiApplication::CreateDeviceD3D() {
 	DXGI_SWAP_CHAIN_DESC sd;

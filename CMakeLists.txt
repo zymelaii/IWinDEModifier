@@ -12,6 +12,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(BUILD_DesktopTab "build utils/DesktopTab" ON)
 option(BUILD_iwdesh "build utils/iwdesh" ON)
 option(BUILD_LazyCraft "build utils/LazyCraft" ON)
+option(BUILD_Ethereality "build utils/Ethereality" ON)
 
 if(MSVC)
 	add_compile_options(/utf-8 /W2 /MP /Gm-)
@@ -25,7 +26,4 @@ else()
 endif()
 
 include_directories(src)
-include_directories(utils/share)
-
-add_subdirectory(utils)
 add_subdirectory(src)

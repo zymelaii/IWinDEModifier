@@ -1,7 +1,7 @@
 set(UTIL_NAME LazyCraft)
 
 file(GLOB SOURCE_FILES *.cpp)
-file(GLOB UTILS_FILES utils/proxy/*.cpp utils/*.cpp com/*.cpp widget/*.cpp)
+file(GLOB UTILS_FILES com/*.cpp widget/*.cpp)
 list(APPEND SOURCE_FILES ${UTILS_FILES})
 
 include_directories(.)
@@ -9,13 +9,12 @@ include_directories(.)
 add_executable(${UTIL_NAME} ${SOURCE_FILES})
 add_dependencies(${UTIL_NAME} lctrap)
 
-target_link_libraries(${UTIL_NAME} PRIVATE tinyico imgui-dx11-static)
+target_link_libraries(${UTIL_NAME} PRIVATE iwde-utils imgui-dx11-static)
 
 if(NOT MSVC)
 	if(CMAKE_BUILD_TYPE STREQUAL "Release")
 		target_link_options(${UTIL_NAME} PRIVATE -Wl,-subsystem,windows)
 	endif()
-	target_link_options(${UTIL_NAME} PRIVATE --static)
 endif()
 
 add_custom_command(TARGET ${UTIL_NAME} POST_BUILD
@@ -29,4 +28,3 @@ add_custom_command(TARGET ${UTIL_NAME} POST_BUILD
 )
 
 add_subdirectory(trap)
-add_subdirectory(utils)

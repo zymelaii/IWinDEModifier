@@ -4,6 +4,9 @@
 
 namespace fs = std::filesystem;
 
+using Proxy::LinkProxy;
+using Proxy::VolumeProxy;
+
 LazyCraft::LazyCraft() {
 	// hdlhook	  = LoadLibrary("trap/lctrap.dll");
 	// auto hook = reinterpret_cast<void (*)()>(GetProcAddress(hdlhook, "LazyCraftCBTHook"));

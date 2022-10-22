@@ -1,4 +1,4 @@
-#include <cstddef>
+#include <stddef.h>
 #include <algorithm>
 #include <regex>
 #include <compare>
@@ -9,10 +9,10 @@
 #include <string>
 #include <iostream>
 
-#include <backend.h>
+#include <share/ui/backend.h>
+#include <share/utils/texture.h>
+#include <iwindeapi/registry.h>
 
-#include "iwindeapi/registry.h"
-#include "utils/texture.h"
 #include "widgets.h"
 
 class IWinDEModifierApp : public ImGuiApplication {
@@ -330,7 +330,7 @@ public:	  //!< Components
 
 public:	  //!< Main Program
 	IWinDEModifierApp(const char* title, int width, int height) {
-		build(title, width, height, 0, 0);
+		build(title, width, height, -1, -1);
 	}
 
 	std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam) override {
@@ -495,5 +495,5 @@ public:	  //!< Main Program
 
 int main(int argc, char* argv[]) {
 	auto app = std::make_unique<IWinDEModifierApp>("IWinDEModifier", 800, 600);
-	return app->lazy_exec();
+	return app->exec();
 }

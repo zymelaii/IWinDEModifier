@@ -1,9 +1,10 @@
-#include "texture.h"
-#include <utils/share/tinyico.h>
-extern "C" int ti__extract_as_argb(const uint8_t* const data, uint8_t** ppixels);
-#include <stb_image.h>
-
 #include <assert.h>
+
+#include <share/ui/stb_image.h>
+#include <share/utils/tinyico/tinyico.h>
+extern "C" int ti__extract_as_argb(const uint8_t* const data, uint8_t** ppixels);
+
+#include "texture.h"
 
 bool LoadTextureFromMemory(ID3D11Device* device, const uint8_t* data, size_t width, size_t height,
 						   ID3D11ShaderResourceView** texture) {

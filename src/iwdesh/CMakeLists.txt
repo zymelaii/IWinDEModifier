@@ -5,7 +5,6 @@ file(GLOB SOURCE_FILES entry/*.cpp)
 file(GLOB_RECURSE HEADER_FILES *.h)
 
 add_library(${UTIL_NAME}-core MODULE ${HEADER_FILES} ${SOURCE_FILES})
-target_link_options(${UTIL_NAME}-core PRIVATE --static)
 target_link_libraries(${UTIL_NAME}-core PRIVATE iwindeapi-static)
 
 set_target_properties(${UTIL_NAME}-core PROPERTIES PLUGIN_NAME core)
@@ -13,8 +12,6 @@ set_target_properties(${UTIL_NAME}-core PROPERTIES PLUGIN_NAME core)
 file(GLOB SOURCE_FILES *.cpp)
 
 add_executable(${UTIL_NAME} ${SOURCE_FILES})
-
-target_link_options(${UTIL_NAME} PRIVATE --static)
 
 set_target_properties(${UTIL_NAME} PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${UTIL_NAME})

@@ -1,5 +1,6 @@
+#include <share/utils/texture.h>
+
 #include "fontproxy.h"
-#include <utils/texture.h>
 
 #include <assert.h>
 
@@ -43,6 +44,7 @@ ImFont* FontProxy::get() {
 FontProxy::~FontProxy() {
 	if (texture_ != nullptr) {
 		texture_->Release();
+		texture_ = nullptr;
 	}
 }
 

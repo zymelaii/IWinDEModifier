@@ -1,8 +1,3 @@
-#include "utils/proxy/linkproxy.h"
-#include "utils/proxy/fontproxy.h"
-#include "utils/proxy/volumeproxy.h"
-#include "utils/texture.h"
-
 #include <iostream>
 #include <vector>
 #include <array>
@@ -11,17 +6,19 @@
 #include <codecvt>
 #include <locale>
 
-#include <backend.h>
-#include <imgui/imgui.h>
-#include <imgui/imgui_internal.h>
+#include <share/utils/proxy/linkproxy.h>
+#include <share/utils/proxy/fontproxy.h>
+#include <share/utils/proxy/volumeproxy.h>
+#include <share/utils/texture.h>
+#include <share/ui/backend.h>
+#include <share/ui/imgui/imgui.h>
+#include <share/ui/imgui/imgui_internal.h>
 
 #include "com/statusbar.h"
 #include "widget/batteryitem.h"
 #include "widget/dateitem.h"
 
-using Proxy::LinkProxy;
 using Proxy::FontProxy;
-using Proxy::VolumeProxy;
 using com::impl::StatusBar;
 
 class LazyCraft : public ImGuiApplication {
