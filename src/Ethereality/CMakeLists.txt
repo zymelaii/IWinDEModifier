@@ -1,6 +1,4 @@
-file(GLOB SOURCE_FILES *.cpp)
-add_executable(Ethereality ${HEADER_FILES} ${SOURCE_FILES})
-
+add_executable(Ethereality client.cpp)
 target_link_libraries(Ethereality PRIVATE imgui-dx11 iwde-utils)
 
 if(NOT MSVC)

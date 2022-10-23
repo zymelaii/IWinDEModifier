@@ -1,251 +1,157 @@
-#include <stddef.h>
-#include <string.h>
-#include <malloc.h>
-#include <algorithm>
+#include "msgitem.h"
+#include "json.hpp"
+
+#include "PrivateMsg.hpp"
+#include "PrivateMsgFactory.hpp"
+#include "PrivateOnlyHub.hpp"
+
+#include <share/utils/proxy/fontproxy.h>
 #include <iostream>
-#include <compare>
-#include <memory>
-#include <string>
-#include <regex>
-#include <list>
-#include <any>
-#include <map>
-#include <set>
-
-#include "chathub.h"
-
-class PrivateTextMsgItem : public ChatHubItem {
-protected:
-	ImVec2 Padding_{24.00, 12.00};	 //!< 消息框内边距
-	float  RectRadius_{12.00};		 //!< 消息框圆角半径
-
-public:
-	using ContentType = struct {
-		bool		self;
-		const char* text;
-	};
-
-	virtual float invoke(void* content, const ImRect& bb, ChatHub* hub) override {
-		using namespace ImGui;
-
-		auto&  msg	  = *reinterpret_cast<ContentType*>(content);
-		ImVec2 cursor = bb.Min;
-		ImVec2 minmax = hub->GetMinMaxMsgItemWidth();
-
-		const auto prev = reinterpret_cast<ContentType*>(hub->GetPrevItem());
-		const auto next = reinterpret_cast<ContentType*>(hub->GetNextItem());
-
-		ImDrawFlags test_RectRoundFlag;
-		if (msg.self) {
-			test_RectRoundFlag = ImDrawFlags_RoundCornersLeft;
-			if (!prev || prev->self != msg.self)
-				test_RectRoundFlag |= ImDrawFlags_RoundCornersTopRight;
-			if (!next || next->self != msg.self)
-				test_RectRoundFlag |= ImDrawFlags_RoundCornersBottomRight;
-		} else {
-			test_RectRoundFlag = ImDrawFlags_RoundCornersRight;
-			if (!prev || prev->self != msg.self)
-				test_RectRoundFlag |= ImDrawFlags_RoundCornersTopLeft;
-			if (!next || next->self != msg.self)
-				test_RectRoundFlag |= ImDrawFlags_RoundCornersBottomLeft;
-		}
-
-		float  test_TextWrapWidth = minmax.y - Padding_.x;
-		ImVec2 test_MsgSize{CalcTextSize(msg.text, nullptr, false, test_TextWrapWidth)};
-
-		float test_InnerRectWidth  = ImMax(test_MsgSize.x, minmax.x - Padding_.x);
-		float test_InnerRectHeight = ImMax(test_MsgSize.y, GetFontSize());
-
-		ImVec2 test_Cursor;
-		if (msg.self) {
-			test_Cursor.x = bb.Max.x - test_InnerRectWidth - Padding_.x;
-			test_Cursor.y = bb.Min.y;
-		} else {
-			test_Cursor.x = bb.Min.x;
-			test_Cursor.y = bb.Min.y;
-		}
-
-		ImVec2 test_MsgOrigin, test_RectRBPoint;
-		test_MsgOrigin.x   = test_Cursor.x + Padding_.x * 0.50;
-		test_RectRBPoint.x = test_MsgOrigin.x + test_InnerRectWidth + Padding_.x * 0.50;
-		test_MsgOrigin.y   = test_Cursor.y + Padding_.y * 0.50;
-		test_RectRBPoint.y = test_MsgOrigin.y + test_InnerRectHeight + Padding_.y * 0.50;
-
-		ImU32 test_Color;
-		if (msg.self) {
-			test_Color = ImColor(204, 242, 207);
-		} else {
-			test_Color = ImColor(255, 255, 255);
-		}
-
-		ImU32 test_ShadowColor = ImColor(236, 237, 238, 200);
-
-		auto drawlist = GetWindowDrawList();
-
-		drawlist->AddRect(
-			test_Cursor, test_RectRBPoint, test_ShadowColor, RectRadius_, test_RectRoundFlag, 4.00);
-		drawlist->AddRectFilled(
-			test_Cursor, test_RectRBPoint, test_Color, RectRadius_, test_RectRoundFlag);
-
-		drawlist->AddText(ImGui::GetFont(),
-						  ImGui::GetFontSize(),
-						  test_MsgOrigin,
-						  ImColor(0, 0, 0),
-						  msg.text,
-						  nullptr,
-						  test_TextWrapWidth);
-
-		return test_RectRBPoint.y - test_Cursor.y;
-	}
-};
-
-class TextChatHub : public ChatHub {
-private:
-	PrivateTextMsgItem PrivateItem_;
-
-	std::list<std::pair<int, const char*>>			 items_;
-	std::list<std::pair<int, const char*>>::iterator cursor_;
-
-	ImVec2	pos_;
-	ImVec2	size_;
-	ImFont* font_;
-
-public:
-	virtual void* GetPrevItem() override {
-		auto it = cursor_;
-		return it == items_.begin() ? nullptr : &*--it;
-	}
-	virtual void* GetNextItem() override {
-		auto it = cursor_;
-		return ++it == items_.end() ? nullptr : &*it;
-	}
-	virtual ChatHubItem* build(void* data) override { return &PrivateItem_; }
-
-	TextChatHub() = default;
-	~TextChatHub() {
-		for (auto& e : items_) {
-			free((void*)e.second);
-		}
-	}
-
-	TextChatHub* push(bool self, const char* text) {
-		items_.push_back({self, _strdup(text)});
-		return this;
-	}
-
-	ImVec2 GetMinSize() const {
-		ImRect padding		= GetChatPadding();
-		float  vert_spacing = GetChatItemVertSpacing();
-		float  minwid = padding.GetWidth() + GetMinMaxMsgItemWidth().y + GetMsgItemOverlapSpacing();
-		float  minhei = padding.GetHeight() + GetInputPadding().GetHeight() + vert_spacing * 2.00;
-		return ImVec2(minwid, minhei);
-	}
-
-	void config(ImVec2 pos, ImVec2 size, ImFont* font) {
-		pos_  = pos;
-		font_ = font;
-		size_ = ImMax(GetMinSize(), size);
-	}
-
-	void render() {
-		using namespace ImGui;
-
-		ImGuiContext& g		   = *GImGui;
-		ImGuiWindow*  window   = g.CurrentWindow;
-		ImDrawList*	  drawlist = window->DrawList;
-		if (window->SkipItems) return;
-
-		int	   id = window->GetID("#TextChatHub");
-		ImRect bb{{0, 0}, size_};
-		bb.Translate(window->InnerRect.Min);
-		bb.Translate(pos_);
-
-		ItemSize(bb.GetSize());
-		if (!ItemAdd(bb, id)) return;
-
-		PushClipRect(bb.Min, bb.Max, true);
-		drawlist->AddRectFilled(bb.Min, bb.Max, ImColor(248, 249, 250));   //!< background
-
-		ImRect padding = GetChatPadding();
-
-		PushFont(font_);
-		ImRect item_bb;
-		item_bb.Min.x = bb.Min.x + padding.Min.x;
-		item_bb.Max.x = bb.Max.x - padding.Max.x;
-		item_bb.Min.y = item_bb.Max.y = bb.Min.y + padding.Min.y + GetChatItemVertSpacing();
-
-		cursor_ = items_.begin();
-		while (cursor_ != items_.end()) {
-			void*		 content = &*cursor_;
-			ChatHubItem* item	 = build(content);
-
-			float height = item->invoke(content, item_bb, this);
-			item_bb.TranslateY(height + GetChatItemVertSpacing());
-
-			if (item_bb.Max.y > bb.Max.y - padding.Max.y) break;
-
-			++cursor_;
-		}
-		PopFont();
-
-		PopClipRect();
-	}
-};
 
 class Ethereality : public ImGuiApplication {
 private:
-	std::unique_ptr<Proxy::FontProxy> font_ascii = Proxy::FontProxy::require();
-	std::unique_ptr<TextChatHub>	  chathub	 = std::make_unique<TextChatHub>();
+	std::unique_ptr<Proxy::FontProxy> font_ascii	  = Proxy::FontProxy::require();
+	PrivateOnlyHub*					  chathub		  = nullptr;
+	ImVec2							  chathub_size	  = ImVec2{480.00, 640.00};
+	float							  titlebar_height = 0.00;
+
+protected:
+	bool TightInput(const char* label, const char* hint, char* buffer, size_t bufsize, ImVec2 pos,
+					ImVec2 size) {
+		auto		window = ImGui::GetCurrentWindow();
+		const auto& io	   = ImGui::GetIO();
+		auto&		style  = ImGui::GetStyle();
+
+		window->DC.CursorPos = window->Pos;
+		window->DC.CursorPos.x += pos.x;
+		window->DC.CursorPos.y += pos.y + window->TitleBarHeight() + style.ItemSpacing.y;
+
+		ImVec2 labelsize = ImGui::CalcTextSize(label);
+		size.x -= labelsize.x + style.ItemSpacing.x;
+
+		ImGui::InputTextEx(label, hint, buffer, bufsize, size, 0);
+		auto id = window->GetID(label);
+
+		if (ImGui::GetFocusID() == id && io.KeysDown[ImGuiKey_Enter]) {
+			ImGui::SetActiveID(id, window);
+			auto state = ImGui::GetInputTextState(id);
+			state->ClearText();
+			state->CursorFollow = true;
+			return buffer[0] != '\0';
+		}
+
+		return false;
+	}
 
 public:
-	Ethereality(const char* title, int width, int height) { build(title, width, height, 100, 100); }
+	Ethereality(const char* title, int width, int height, ChatHub* hub)
+		: chathub(dynamic_cast<PrivateOnlyHub*>(hub)) {
+		build(title, width, height, 100, 100);
+	}
 
 	void configure() override {
 		auto CN_glyph = ImGui::GetIO().Fonts->GetGlyphRangesChineseFull();
 		font_ascii->add(R"(assets\DroidSans.ttf)", 20.00)
 			->add(R"(assets\YaHei Consolas Hybrid.ttf)", 20.00, CN_glyph)
 			->build(pd3dDevice_);
-		chathub->config({0, 0}, {800, 800}, font_ascii->get());
 	}
 
 	void render() override {
-		using namespace ImGui;
+		ImVec2 MinSize		 = chathub->getMinSizeConstraint();
+		ImVec2 WindowPadding = ImGui::GetStyle().WindowPadding;
+		ImVec2 ChatHubMargin{32.00, 32.00};
+		ImVec2 WindowMinSize{MinSize.x + WindowPadding.x + ChatHubMargin.x * 2,
+							 MinSize.y + ChatHubMargin.y * 2};
+		ImVec2 ChatHubPanelSize{
+			chathub_size.x - ChatHubMargin.x * 2,
+			ImMin(600.00f, chathub_size.y - ChatHubMargin.y * 2 - titlebar_height)};
 
-		ImVec2 MinSize = chathub->GetMinSize();
-		SetNextWindowSizeConstraints({MinSize.x + GetStyle().WindowPadding.x, MinSize.y},
-									 GetIO().DisplaySize);
-		if (Begin("Ethereality ChatHub")) {
-			chathub->config({0, 0},
-							ImVec2(GetCurrentWindow()->InnerRect.GetWidth(),
-								   GetCurrentWindow()->InnerRect.GetHeight() - 64.00),
-							font_ascii->get());
-			chathub->render();
+		ImGui::SetNextWindowSizeConstraints(WindowMinSize, ImGui::GetIO().DisplaySize);
+		ImGui::SetNextWindowSize(chathub_size, ImGuiCond_Always);
 
-			static char inbuf[1024];
-			PushFont(font_ascii->get());
+		if (ImGui::Begin("Ethereality ChatHub")) {
+			ImGui::PushFont(font_ascii->get());
 
-			InputTextWithHint("ChatHub#Input", "Type message", inbuf, sizeof(inbuf));
-			auto window = GetCurrentWindow();
-			if (GetFocusID() == window->GetID("ChatHub#Input") &&
-				GetIO().KeysDown[ImGuiKey_Enter]) {
-				auto id = window->GetID("ChatHub#Input");
-				SetActiveID(id, window);
+			//! `ChatHub' Render & Control
+			chathub->render(ChatHubMargin, ChatHubPanelSize);
+			chathub->scroolTo(chathub->getScrollState() - ImGui::GetIO().MouseWheel * 60.00);
 
-				if (inbuf[0]) chathub->push(rand() % 2, inbuf);
-
-				auto state = GetInputTextState(id);
-				state->ClearText();
-				state->CursorFollow = true;
+			//! `ChatHub Input' Render & Control
+			static char TextInput[1024] = {0};
+			ImVec2		InputPos{ChatHubMargin.x, ChatHubMargin.y + ChatHubPanelSize.y};
+			ImVec2		InputSize{ChatHubPanelSize.x, 0.00f};
+			if (TightInput("ChatHub Input",
+						   "Type message",
+						   TextInput,
+						   sizeof(TextInput),
+						   InputPos,
+						   InputSize)) {
+				static uint64_t MsgDelegateID = 10000;
+				char			MsgID[64];
+				sprintf(MsgID, "PrivateOnlyHub#%llu", MsgDelegateID++);
+				chathub->push(!!(rand() % 2), MsgID, TextInput);
 			}
 
-			PopFont();
-
-			End();
+			ImGui::PopFont();
+			chathub_size	= ImGui::GetWindowSize();
+			titlebar_height = ImGui::GetCurrentWindow()->TitleBarHeight();
+			ImGui::End();
 		}
 	}
 };
 
 int main(int argc, char* argv[]) {
-	auto app = std::make_unique<Ethereality>("Client Demo", 600, 400);
+	PrivateOnlyHub hub;
+
+	hub.push(true,
+			 "PrivateOnlyHub#25",
+			 "骂别人不革命，便是革命者，则自己不做事，而骂别人的事做得不好，自然便是更做事者。若与"
+			 "此辈理论，可以被牵连到白费唇舌，一事无成，也就是白活一世，于己于人，都无益处。我现在"
+			 "得了妙法，是谣言不辩，诬蔑不洗，只管自己做事。\n——鲁迅");
+	hub.push(true,
+			 "PrivateOnlyHub#26",
+			 "同一件事，费了苦功而达到的，也比并不费力而达到的可贵。\n——鲁迅的人生名言");
+	hub.push(
+		false, "PrivateOnlyHub#27", "有些人死了，但他还活着；有些人活着，但他已经死了。\n——鲁迅");
+	hub.push(
+		true,
+		"PrivateOnlyHub#28",
+		"她却是什么都记得：我的言辞，竟至于读熟了的一般，能够滔滔背诵；我的举动，就如有一张我"
+		"所看不见的影片挂在眼下，叙述得如生，很细微，自然连那使我不愿再想的浅薄的电影的一闪。\n"
+		"——关于鲁迅的名言大全");
+	hub.push(
+		false, "PrivateOnlyHub#29", "娜拉走后怎样，不是堕落，就是回来。\n——鲁迅先生的一句名言");
+	hub.push(false,
+			 "PrivateOnlyHub#30",
+			 "在我生存时，曾经玩笑地设想：假使一个人的死亡，只是运动神经的废灭，而知觉还在，那就比"
+			 "全死了更可怕。谁知道我的预想竟的中了，我自己就在证实这预想。\n——关于鲁迅的名言名句");
+	hub.push(false, "PrivateOnlyHub#31", "轻敌，最容易失败。\n——鲁迅");
+	hub.push(true,
+			 "PrivateOnlyHub#32",
+			 "父母对于子女，应该健全的产生，尽力的教育，完全的解放。\n——鲁迅");
+	hub.push(true,
+			 "PrivateOnlyHub#33",
+			 "一见短袖子，立刻想到白臂膊，立刻想到全裸体，立刻想到生殖器，立刻想到性交，立刻想到杂"
+			 "交，立刻想到私生子。中国人的想象惟在这一层能够如此跃进。\n——关于鲁迅先生的名言");
+	hub.push(true,
+			 "PrivateOnlyHub#34",
+			 "倘有陌生的声音叫你的名字，你万不可答应它。\n——关于鲁迅先生的名言");
+	hub.push(
+		false, "PrivateOnlyHub#35", "世间本无路，走的人多了，也就成了路。\n——关于鲁迅的名言大全");
+	hub.push(true,
+			 "PrivateOnlyHub#36",
+			 "所以我们且不要高谈什么连自己也并不了然的社会组织或意志强弱的滥调，先来设身处地的想一"
+			 "想罢。\n——有关鲁迅的名言");
+	hub.push(true, "PrivateOnlyHub#37", "我向来不惮以最坏的恶意揣测中国人。\n——有关鲁迅的名言");
+	hub.push(true,
+			 "PrivateOnlyHub#38",
+			 "凡对于以真话为笑话的，以笑话为真话的，以笑话为笑话的，只有一个方法：就是不说话。于是"
+			 "我从此尽量少说话。\n——关于鲁迅的名言名句");
+	hub.push(false,
+			 "PrivateOnlyHub#39",
+			 "美国人说，时间就是金钱。但我想：时间就是性命。无端的空耗别人的时间，其实是无异于谋财"
+			 "害命的。\n——有关鲁迅先生的名言");
+
+	auto app = std::make_unique<Ethereality>("Ethereality Sample", 1200, 800, &hub);
 	return app->exec();
 }
