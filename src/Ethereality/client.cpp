@@ -71,32 +71,13 @@ public:
 
 		if (ImGui::Begin("Ethereality ChatHub")) {
 			ImGui::PushFont(font_ascii->get());
-
-			//! `ChatHub' Render & Control
 			chathub->render(ChatHubMargin, ChatHubPanelSize);
-			chathub->scroolTo(chathub->getScrollState() - ImGui::GetIO().MouseWheel * 60.00);
-
-			//! `ChatHub Input' Render & Control
-			static char TextInput[1024] = {0};
-			ImVec2		InputPos{ChatHubMargin.x, ChatHubMargin.y + ChatHubPanelSize.y};
-			ImVec2		InputSize{ChatHubPanelSize.x, 0.00f};
-			if (TightInput("ChatHub Input",
-						   "Type message",
-						   TextInput,
-						   sizeof(TextInput),
-						   InputPos,
-						   InputSize)) {
-				static uint64_t MsgDelegateID = 10000;
-				char			MsgID[64];
-				sprintf(MsgID, "PrivateOnlyHub#%llu", MsgDelegateID++);
-				chathub->push(!!(rand() % 2), MsgID, TextInput);
-			}
-
 			ImGui::PopFont();
+
 			chathub_size	= ImGui::GetWindowSize();
 			titlebar_height = ImGui::GetCurrentWindow()->TitleBarHeight();
-			ImGui::End();
 		}
+		ImGui::End();
 	}
 };
 
