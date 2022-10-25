@@ -137,7 +137,6 @@ void PrivateOnlyHub::resolvePanel(const ImRect& bb) {
 			should_render_ = true;
 			resolver->resolve(&item.second, item_bb, this);
 
-			// const auto& sender = item.second["sender"].get_ref<const std::string&>();
 			if (full_bb.Contains(ImGui::GetIO().MousePos)) {
 				ImRect select_bb;
 				select_bb.Min.x = clip_bb.Min.x;
@@ -150,6 +149,15 @@ void PrivateOnlyHub::resolvePanel(const ImRect& bb) {
 
 		item_bb.TranslateY(full_bb.GetHeight() + VertSpacing);
 		if (item_bb.Min.y > clip_bb.Max.y) break;
+	}
+
+	if (items_.empty()) {
+		const char* hint = "No messages";
+		ImVec2		size = ImGui::CalcTextSize(hint);
+		ImVec2		pos{clip_bb.Min.x + (clip_bb.GetWidth() - size.x) / 2,
+					clip_bb.Min.y + (clip_bb.GetHeight() - size.y) / 2};
+		drawlist->AddText(
+			ImGui::GetFont(), ImGui::GetFontSize(), pos, ImColor(159, 169, 178), hint);
 	}
 
 	ImGui::PopClipRect();
