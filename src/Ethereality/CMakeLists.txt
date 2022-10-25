@@ -1,5 +1,23 @@
-add_executable(Ethereality client.cpp)
-target_link_libraries(Ethereality PRIVATE imgui-dx11 iwde-utils)
+find_package(libuv)
+find_package(nlohmann_json)
+
+set(SOURCE_FILES
+	PrivateOnlyHub/PrivateOnlyHub.cpp
+	PrivateOnlyHub/PrivateMsgFactory.cpp
+	PrivateOnlyHub/PrivateMsg.cpp
+	client.cpp)
+
+add_executable(Ethereality ${SOURCE_FILES})
+target_link_libraries(Ethereality PRIVATE imgui-dx11 iwde-utils d3d11 nlohmann_json::nlohmann_json)
+
+add_executable(Win32Dx11Example win32_dx11_example.cpp)
+target_link_libraries(Win32Dx11Example PRIVATE imgui-dx11 d3d11)
+
+add_executable(TcpServer tcp_server.cpp)
+target_link_libraries(TcpServer PRIVATE uv_a)
+
+add_executable(TcpClient tcp_client.cpp)
+target_link_libraries(TcpClient PRIVATE uv_a)
 
 if(NOT MSVC)
 	if(CMAKE_BUILD_TYPE STREQUAL "Release")

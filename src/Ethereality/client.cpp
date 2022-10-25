@@ -1,19 +1,14 @@
-#include "msgitem.h"
-#include "json.hpp"
-
-#include "PrivateMsg.hpp"
-#include "PrivateMsgFactory.hpp"
-#include "PrivateOnlyHub.hpp"
+#include <iostream>
 
 #include <share/utils/proxy/fontproxy.h>
-#include <iostream>
+
+#include "PrivateOnlyHub/PrivateOnlyHub.h"
 
 class Ethereality : public ImGuiApplication {
 private:
-	std::unique_ptr<Proxy::FontProxy> font_ascii	  = Proxy::FontProxy::require();
-	PrivateOnlyHub*					  chathub		  = nullptr;
-	ImVec2							  chathub_size	  = ImVec2{480.00, 640.00};
-	float							  titlebar_height = 0.00;
+	std::unique_ptr<Proxy::FontProxy> font_ascii   = Proxy::FontProxy::require();
+	PrivateOnlyHub*					  chathub	   = nullptr;
+	ImVec2							  chathub_size = ImVec2{480.00, 640.00};
 
 protected:
 	bool TightInput(const char* label, const char* hint, char* buffer, size_t bufsize, ImVec2 pos,
@@ -46,7 +41,125 @@ protected:
 public:
 	Ethereality(const char* title, int width, int height, ChatHub* hub)
 		: chathub(dynamic_cast<PrivateOnlyHub*>(hub)) {
-		build(title, width, height, 100, 100);
+		build(title, 0, 0, 0, 0);
+	}
+
+	bool CreateDeviceD3D() override {
+		RECT rcWnd;
+		GetWindowRect(hwnd_, &rcWnd);
+
+		DXGI_SWAP_CHAIN_DESC sd;
+		ZeroMemory(&sd, sizeof(sd));
+		sd.BufferCount						  = 2;
+		sd.BufferDesc.Width					  = rcWnd.right - rcWnd.left;
+		sd.BufferDesc.Height				  = rcWnd.bottom - rcWnd.top;
+		sd.BufferDesc.Format				  = DXGI_FORMAT_B8G8R8A8_UNORM;
+		sd.BufferDesc.RefreshRate.Numerator	  = 60;
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+		sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
+		sd.BufferUsage		  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.OutputWindow		  = hwnd_;
+		sd.SampleDesc.Count	  = 1;
+		sd.SampleDesc.Quality = 0;
+		sd.Windowed			  = TRUE;
+		sd.SwapEffect		  = DXGI_SWAP_EFFECT_DISCARD;
+
+		UINT					createDeviceFlags = 0;
+		D3D_FEATURE_LEVEL		featureLevel;
+		const D3D_FEATURE_LEVEL featureLevelArray[2] = {
+			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_10_0,
+		};
+		if (D3D11CreateDeviceAndSwapChain(NULL,
+										  D3D_DRIVER_TYPE_HARDWARE,
+										  NULL,
+										  createDeviceFlags,
+										  featureLevelArray,
+										  2,
+										  D3D11_SDK_VERSION,
+										  &sd,
+										  &pSwapChain_,
+										  &pd3dDevice_,
+										  &featureLevel,
+										  &pd3dDeviceContext_) != S_OK)
+			return false;
+
+		CreateRenderTarget();
+		return true;
+	}
+
+	Ethereality* build(const char* title, int width, int height, int x, int y) override {
+		ImGui_ImplWin32_EnableDpiAwareness();
+
+		sprintf(class_, "##Ethereality[%s]", title);
+
+		WNDCLASSEX wc = {sizeof(WNDCLASSEX),
+						 CS_CLASSDC,
+						 ImGuiApplication::WndProc,
+						 0,
+						 sizeof(void*),
+						 GetModuleHandle(nullptr),
+						 nullptr,
+						 nullptr,
+						 nullptr,
+						 nullptr,
+						 class_,
+						 nullptr};
+		RegisterClassEx(&wc);
+
+		hwnd_ = CreateWindowEx(WS_EX_LAYERED,
+							   wc.lpszClassName,
+							   title,
+							   WS_POPUP,
+							   0,
+							   0,
+							   GetSystemMetrics(SM_CXSCREEN),
+							   GetSystemMetrics(SM_CYSCREEN),
+							   nullptr,
+							   nullptr,
+							   wc.hInstance,
+							   this);
+
+		if (!CreateDeviceD3D()) {
+			CleanupDeviceD3D();
+			UnregisterClass(class_, GetModuleHandle(nullptr));
+			errno_ = 1;
+		}
+
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+
+		ImGui_ImplWin32_Init(hwnd_);
+		ImGui_ImplDX11_Init(pd3dDevice_, pd3dDeviceContext_);
+
+		return this;
+	}
+
+	void present() override {
+		float ClearCol[4] = {0, 1.00, 0, 0};
+
+		ImGui::Render();
+		pd3dDeviceContext_->OMSetRenderTargets(1, &mainRenderTargetView_, nullptr);
+		pd3dDeviceContext_->ClearRenderTargetView(mainRenderTargetView_, ClearCol);
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+		BLENDFUNCTION  blend	= {AC_SRC_OVER, 0, 0, AC_SRC_ALPHA};
+		POINT		   pt		= {0, 0};
+		SIZE		   sz		= {0, 0};
+		IDXGISurface1* pSurface = nullptr;
+		HDC			   hdc		= nullptr;
+
+		pSwapChain_->GetBuffer(0, IID_PPV_ARGS(&pSurface));
+		pSwapChain_->Present(1, 0);
+
+		DXGI_SURFACE_DESC desc;
+		pSurface->GetDesc(&desc);
+		sz.cx = desc.Width;
+		sz.cy = desc.Height;
+		pSurface->GetDC(false, &hdc);
+		UpdateLayeredWindow(hwnd_, nullptr, nullptr, &sz, hdc, &pt, RGB(0, 255, 0), &blend, ULW_COLORKEY);
+		pSurface->ReleaseDC(nullptr);
+		pSurface->Release();
 	}
 
 	void configure() override {
@@ -56,28 +169,51 @@ public:
 			->build(pd3dDevice_);
 	}
 
+	std::optional<LRESULT> notify(UINT msg, WPARAM wParam, LPARAM lParam) override {
+		if (msg == WM_SIZE) {
+			if (wParam != SIZE_MINIMIZED) {
+				ResizeBuffer((UINT)LOWORD(lParam), (UINT)HIWORD(lParam));
+			}
+			return 0;
+		}
+		if (msg == WM_KEYDOWN && wParam == VK_ESCAPE) {
+			ShowWindow(hwnd_, SW_HIDE);
+			PostQuitMessage(0);
+			return 0;
+		}
+		return std::nullopt;
+	}
+
 	void render() override {
-		ImVec2 MinSize		 = chathub->getMinSizeConstraint();
-		ImVec2 WindowPadding = ImGui::GetStyle().WindowPadding;
-		ImVec2 ChatHubMargin{32.00, 32.00};
+		const auto& style = ImGui::GetStyle();
+		const auto& io	  = ImGui::GetIO();
+
+		float  TitleBarHeight = ImGui::GetFontSize() + style.FramePadding.y * 2.0f;
+		ImVec2 MinSize		  = chathub->getMinSizeConstraint();
+		ImVec2 WindowPadding  = style.WindowPadding;
+		ImVec2 ChatHubMargin{4.00, 4.00};
 		ImVec2 WindowMinSize{MinSize.x + WindowPadding.x + ChatHubMargin.x * 2,
-							 MinSize.y + ChatHubMargin.y * 2};
+							 MinSize.y + ChatHubMargin.y * 2 + TitleBarHeight};
 		ImVec2 ChatHubPanelSize{
 			chathub_size.x - ChatHubMargin.x * 2,
-			ImMin(600.00f, chathub_size.y - ChatHubMargin.y * 2 - titlebar_height)};
+			ImMin(600.00f, chathub_size.y - ChatHubMargin.y * 2 - TitleBarHeight)};
+		ImVec2 WindowMaxSize{io.DisplaySize.x / 2, 600.00f + ChatHubMargin.y * 2 + TitleBarHeight};
 
-		ImGui::SetNextWindowSizeConstraints(WindowMinSize, ImGui::GetIO().DisplaySize);
+		ImGui::SetNextWindowSizeConstraints(WindowMinSize, WindowMaxSize);
 		ImGui::SetNextWindowSize(chathub_size, ImGuiCond_Always);
 
-		if (ImGui::Begin("Ethereality ChatHub")) {
+		ImGui::PushStyleColor(ImGuiCol_TitleBgCollapsed,
+							  ImGui::GetColorU32(ImGuiCol_TitleBgActive));
+		if (ImGui::Begin("Ethereality ChatHub##ChatHub.PrivateOnlyHub",
+						 nullptr,
+						 ImGuiWindowFlags_NoScrollbar)) {
 			ImGui::PushFont(font_ascii->get());
 			chathub->render(ChatHubMargin, ChatHubPanelSize);
 			ImGui::PopFont();
-
-			chathub_size	= ImGui::GetWindowSize();
-			titlebar_height = ImGui::GetCurrentWindow()->TitleBarHeight();
+			chathub_size = ImGui::GetWindowSize();
 		}
 		ImGui::End();
+		ImGui::PopStyleColor();
 	}
 };
 
