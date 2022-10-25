@@ -1,3 +1,5 @@
+#pragma once
+
 #include <d3d11.h>
 #include <optional>
 
@@ -12,11 +14,11 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 class ImGuiApplication {
 public:	  //! backend support
 	static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	void				  CreateRenderTarget();
-	void				  CleanupRenderTarget();
-	void				  CleanupDeviceD3D();
-	bool				  CreateDeviceD3D();
-	void				  ResizeBuffer(int width, int height);
+	virtual void		  CreateRenderTarget();
+	virtual void		  CleanupRenderTarget();
+	virtual void		  CleanupDeviceD3D();
+	virtual bool		  CreateDeviceD3D();
+	virtual void		  ResizeBuffer(int width, int height);
 
 public:
 	ImGuiApplication();

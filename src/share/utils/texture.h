@@ -1,3 +1,5 @@
+#pragma once
+
 #include <share/ui/imgui/imgui.h>
 
 #include <stdint.h>

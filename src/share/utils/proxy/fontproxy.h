@@ -1,3 +1,5 @@
+#pragma once
+
 #include <share/ui/imgui/imgui.h>
 
 #include <d3d11.h>
