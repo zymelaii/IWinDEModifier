@@ -33,12 +33,21 @@ LinkProxy::LinkProxy() {
 		throw std::runtime_error("LinkProxy unexpected constructor failure (IPersistFile)");
 }
 
-bool LinkProxy::query(const wchar_t* lnkpath, char* destbuf, size_t szbuf) {
+bool LinkProxy::query(const wchar_t* lnkpath, char* destbuf, size_t szbuf, Attribute attr) {
 	HRESULT hr = lnkfile_->Load(lnkpath, STGM_READ);
 
 	if (SUCCEEDED(hr)) {
-		WIN32_FIND_DATA fd{};
-		hr = shlink_->GetPath(destbuf, szbuf, &fd, 0);
+		switch (attr) {
+			case Attribute::Source: {
+				WIN32_FIND_DATA fd{};
+				hr = shlink_->GetPath(destbuf, szbuf, &fd, 0);
+				break;
+			}
+			case Attribute::WorkDir: {
+				hr = shlink_->GetWorkingDirectory(destbuf, szbuf);
+				break;
+			}
+		}
 	}
 
 	return SUCCEEDED(hr);

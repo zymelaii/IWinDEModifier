@@ -6,12 +6,18 @@ namespace Proxy {
 struct LinkProxy {
 	static auto require() -> std::unique_ptr<LinkProxy>;
 
-	bool query(const wchar_t* lnkpath, char* destbuf, size_t szbuf);
+	enum class Attribute {
+		Source,
+		WorkDir,
+	};
+
+	bool query(const wchar_t* lnkpath, char* destbuf, size_t szbuf,
+			   Attribute attr = Attribute::Source);
 
 	~LinkProxy();
 
-	LinkProxy(const LinkProxy&) = delete;
-	LinkProxy(LinkProxy&&)		= delete;
+	LinkProxy(const LinkProxy&)			   = delete;
+	LinkProxy(LinkProxy&&)				   = delete;
 	LinkProxy& operator=(const LinkProxy&) = delete;
 
 protected:
