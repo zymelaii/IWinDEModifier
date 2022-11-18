@@ -1,3 +1,4 @@
+#include <string>
 #include <thread>
 
 #include "lazycraft.h"
@@ -73,7 +74,7 @@ bool LazyCraft::IQuickLaunch() {
 			box.Max.y += spacing * 0.5 * rel;
 		}
 
-		canvas->AddImage(std::get<2>(QuickLaunchs[i]), box.Min, box.Max);
+		canvas->AddImage(std::get<3>(QuickLaunchs[i]), box.Min, box.Max);
 	}
 
 	ImGui::SetMouseCursor(hovered ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_Arrow);
@@ -85,7 +86,7 @@ bool LazyCraft::IQuickLaunch() {
 			   y = posy + spacing / 2;
 	const ImRect box{x, y, x + szItem, y + szItem};
 
-	const auto& [title, execpath, unused] = QuickLaunchs[selection];
+	const auto& [title, execpath, workdir, unused] = QuickLaunchs[selection];
 
 	ImGui::PushFont(font_ascii->get());
 	const auto	 size	= ImGui::CalcTextSize(title.c_str());
@@ -105,7 +106,7 @@ bool LazyCraft::IQuickLaunch() {
 
 	if (pressed) {
 		std::thread(
-			[](const wchar_t* prog) {
+			[](const wchar_t* prog, const wchar_t *workdir) {
 				STARTUPINFOW		startinfo{};
 				PROCESS_INFORMATION procinfo{};
 				startinfo.cb = sizeof(STARTUPINFOW);
@@ -116,12 +117,12 @@ bool LazyCraft::IQuickLaunch() {
 							   false,
 							   CREATE_NEW_PROCESS_GROUP | HIGH_PRIORITY_CLASS,
 							   nullptr,
-							   nullptr,
+							   workdir[0] ? workdir : nullptr,
 							   &startinfo,
 							   &procinfo);
 				WaitForInputIdle(procinfo.hProcess, INFINITE);
 			},
-			execpath.c_str())
+			execpath.c_str(), workdir.c_str())
 			.detach();
 	}
 
@@ -129,14 +130,18 @@ bool LazyCraft::IQuickLaunch() {
 }
 
 bool LazyCraft::ISearchEngineClassic() {
+	auto		window = ImGui::GetCurrentWindow();
+	const auto& style  = ImGui::GetStyle();
+
 	static char buffer[1024]{};
 	const auto	strid = "##LazyCraft.SearchEngine";
 
 	ImGui::SetKeyboardFocusHere();
 
+	ImGui::PushFont(font_full->get());
 	const char* hint	  = "LazyCraft Search Engine...";
 	const float searchhei = ImGui::GetFontSize() * 2;
-	ImGui::PushFont(font_full->get());
+	const float searchwid = window->SizeFull.x / 3;
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.00);
 	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetFontSize() * 0.75);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
@@ -144,7 +149,13 @@ bool LazyCraft::ISearchEngineClassic() {
 	ImGui::PushStyleColor(ImGuiCol_Text, ImColor(10, 10, 10).Value);
 	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImColor(255, 255, 255).Value);
 	ImGui::PushStyleColor(ImGuiCol_Border, ImColor(225, 228, 232).Value);
-	ImGui::InputTextEx(strid, hint, buffer, 1024, ImVec2(512, searchhei), 0);
+
+	ImVec2 prevCursorPos   = window->DC.CursorPos;
+	window->DC.CursorPos.x = (window->SizeFull.x - searchwid) / 2;
+	window->DC.CursorPos.y = window->SizeFull.y / 8;
+	ImGui::InputTextEx(strid, hint, buffer, 1024, ImVec2(searchwid, searchhei), 0);
+	window->DC.CursorPos = prevCursorPos;
+
 	ImGui::PopStyleColor(3);
 	ImGui::PopStyleVar(3);
 	ImGui::PopFont();
@@ -153,8 +164,11 @@ bool LazyCraft::ISearchEngineClassic() {
 
 	if (ImGui::GetFocusID() == this_id) {
 		if (ImGui::GetIO().KeysDown[ImGuiKey_Enter]) {
+			char  execfile[256] = {0};
+			char* params		= strchr(buffer, ' ');
+			memcpy(execfile, buffer, params ? params - buffer : strlen(buffer) + 1);
 			HINSTANCE inst =
-				ShellExecute(nullptr, nullptr, buffer, nullptr, nullptr, SW_SHOWDEFAULT);
+				ShellExecute(nullptr, nullptr, execfile, params, nullptr, SW_SHOWDEFAULT);
 			if (reinterpret_cast<intptr_t>(inst) <= 32) {
 				printf("caught failure on ShellExecute, with %lld\n",
 					   reinterpret_cast<intptr_t>(inst));

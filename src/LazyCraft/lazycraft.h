@@ -23,7 +23,7 @@ using com::impl::StatusBar;
 
 class LazyCraft : public ImGuiApplication {
 private:
-	using QuickLaunchItem = std::tuple<std::string, std::wstring, ID3D11ShaderResourceView*>;
+	using QuickLaunchItem = std::tuple<std::string, std::wstring, std::wstring, ID3D11ShaderResourceView*>;
 	using FontResource	  = std::unique_ptr<FontProxy>;
 	ID3D11ShaderResourceView*	 texture_Background = nullptr;
 	FontResource				 font_charge		= FontProxy::require();

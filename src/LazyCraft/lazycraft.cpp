@@ -196,12 +196,16 @@ void LazyCraft::configure() {
 		if (path.extension() != L".lnk") continue;
 		char buffer[MAX_PATH]{};
 		auto lnkpath = path.generic_wstring();
-		if (proxy->query(lnkpath.data(), buffer, MAX_PATH)) {
-			wchar_t execpath[MAX_PATH];
+
+		if (proxy->query(lnkpath.data(), buffer, MAX_PATH, LinkProxy::Attribute::Source)) {
+			wchar_t execpath[MAX_PATH] = {0}, workdir[MAX_PATH] = {0};
 			MultiByteToWideChar(CP_ACP, 0, buffer, -1, execpath, MAX_PATH);
+			if (proxy->query(lnkpath.data(), buffer, MAX_PATH, LinkProxy::Attribute::WorkDir)) {
+				MultiByteToWideChar(CP_ACP, 0, buffer, -1, workdir, MAX_PATH);
+			}
 			auto texture = LoadIconFromModule(pd3dDevice_, execpath);
 			if (texture != nullptr) {
-				QuickLaunchs.push_back({path.stem().string(), execpath, texture});
+				QuickLaunchs.push_back({path.stem().string(), execpath, workdir, texture});
 			}
 		}
 	}
@@ -209,8 +213,10 @@ void LazyCraft::configure() {
 	const auto range_full = ImGui::GetIO().Fonts->GetGlyphRangesChineseFull();
 
 	font_charge->add(R"(assets\DroidSans.ttf)", 12.0f, {'0', '9', 0})->build(pd3dDevice_);
-	font_ascii->add(R"(assets\DroidSans.ttf)", 16.0f)->build(pd3dDevice_);
-	font_full->add(R"(assets\YaHei Consolas Hybrid.ttf)", 20.0f, range_full)->build(pd3dDevice_);
+	font_ascii->add(R"(assets\DroidSans.ttf)", 16.0f)
+		->add(R"(assets\YaHei Consolas Hybrid.ttf)", 16.0f, range_full)
+		->build(pd3dDevice_);
+	font_full->add(R"(assets\SmileySans-Oblique.ttf)", 24.0f, range_full)->build(pd3dDevice_);
 
 	toggle(false);
 
