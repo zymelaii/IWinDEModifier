@@ -28,6 +28,7 @@ private:
 	ID3D11ShaderResourceView*	 texture_Background = nullptr;
 	FontResource				 font_charge		= FontProxy::require();
 	FontResource				 font_ascii			= FontProxy::require();
+	FontResource				 font_full			= FontProxy::require();
 	std::vector<QuickLaunchItem> QuickLaunchs{};
 	bool						 toggle_se{false};
 	UINT_PTR					 timer{};

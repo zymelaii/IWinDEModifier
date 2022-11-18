@@ -206,8 +206,11 @@ void LazyCraft::configure() {
 		}
 	}
 
+	const auto range_full = ImGui::GetIO().Fonts->GetGlyphRangesChineseFull();
+
 	font_charge->add(R"(assets\DroidSans.ttf)", 12.0f, {'0', '9', 0})->build(pd3dDevice_);
 	font_ascii->add(R"(assets\DroidSans.ttf)", 16.0f)->build(pd3dDevice_);
+	font_full->add(R"(assets\YaHei Consolas Hybrid.ttf)", 20.0f, range_full)->build(pd3dDevice_);
 
 	toggle(false);
 

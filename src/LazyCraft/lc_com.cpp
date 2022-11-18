@@ -18,7 +18,7 @@ bool LazyCraft::IQuickLaunch() {
 
 	if (nItem <= 0) return false;
 
-	int	   selection{-255}; 
+	int	   selection{-255};
 	float  width{}, height{}, middle{}, rounding{}, partion{}, posy{};
 	ImRect view{};
 
@@ -130,10 +130,24 @@ bool LazyCraft::IQuickLaunch() {
 
 bool LazyCraft::ISearchEngineClassic() {
 	static char buffer[1024]{};
-	const auto	strid = "LazyCraft.SearchEngine";
+	const auto	strid = "##LazyCraft.SearchEngine";
 
 	ImGui::SetKeyboardFocusHere();
-	ImGui::InputTextEx(strid, "LazyCraft Search Engine...", buffer, 1024, ImVec2(512, 0), 0);
+
+	const char* hint	  = "LazyCraft Search Engine...";
+	const float searchhei = ImGui::GetFontSize() * 2;
+	ImGui::PushFont(font_full->get());
+	ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.00);
+	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetFontSize() * 0.75);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,
+						{12.00, (searchhei - ImGui::GetFontSize()) / 2});
+	ImGui::PushStyleColor(ImGuiCol_Text, ImColor(10, 10, 10).Value);
+	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImColor(255, 255, 255).Value);
+	ImGui::PushStyleColor(ImGuiCol_Border, ImColor(225, 228, 232).Value);
+	ImGui::InputTextEx(strid, hint, buffer, 1024, ImVec2(512, searchhei), 0);
+	ImGui::PopStyleColor(3);
+	ImGui::PopStyleVar(3);
+	ImGui::PopFont();
 
 	const auto this_id = ImGui::GetCurrentWindow()->GetID(strid);
 
