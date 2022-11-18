@@ -3,16 +3,24 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <mutex>
+#include <queue>
+#include <optional>
 #include <nlohmann/json.hpp>
 
 #include "../msgitem.h"
-#include "PrivateMsgFactory.h"
+#include "GroupMsgFactory.h"
 
-class PrivateOnlyHub : public ChatHub {
+class GroupOnlyHub : public ChatHub {
 private:
 	using FactoryModel = std::unique_ptr<MsgItemFactory>;
 	using json		   = nlohmann::json;
 	using ItemType	   = std::pair<uint64_t, json>;
+
+	std::mutex				mutex_;
+	std::queue<std::string> req_queue_;
+
+	std::string identity_;
 
 	mutable FactoryModel  factory_;
 	bool				  should_render_;
@@ -25,9 +33,15 @@ private:
 	bool   scroll_lock_;
 
 public:
-	PrivateOnlyHub();
+	GroupOnlyHub();
 
-	void push(bool is_self, const std::string& msgid, const std::string& text);
+	void					   login_as(const std::string& identity);
+	const std::string&		   getIdentity() const;
+	std::optional<std::string> getRequest();
+	void					   addRequest(std::string req);
+
+
+	void push(const std::string& sender, const std::string& msgid, const std::string& text);
 	json parse(uint64_t id);
 
 	float getScrollState() const;

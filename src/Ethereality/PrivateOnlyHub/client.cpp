@@ -1,9 +1,9 @@
 #include <iostream>
-
-#include <share/utils/proxy/fontproxy.h>
 #include <windowsx.h>
 
-#include "PrivateOnlyHub/PrivateOnlyHub.h"
+#include <share/utils/proxy/fontproxy.h>
+
+#include "PrivateOnlyHub.h"
 
 class Ethereality : public ImGuiApplication {
 private:
