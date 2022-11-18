@@ -109,10 +109,12 @@ LRESULT WINAPI ImGuiApplication::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPA
 		case WM_SIZE: {
 			if (wParam != SIZE_MINIMIZED) {
 				app->ResizeBuffer((UINT)LOWORD(lParam), (UINT)HIWORD(lParam));
+				if (ImGui::GetCurrentContext()) {
+					app->prepare();
+					app->render();
+					app->present();
+				}
 			}
-			app->prepare();
-			app->render();
-			app->present();
 			return 0;
 		}
 		case WM_SYSCOMMAND: {
