@@ -1,5 +1,5 @@
-find_package(libuv)
-find_package(nlohmann_json)
+find_package(libuv REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 set(SOURCE_FILES
 	PrivateOnlyHub/PrivateOnlyHub.cpp
@@ -24,7 +24,7 @@ set(SOURCE_FILES
 	GroupOnlyHub/server.cpp)
 
 add_executable(GroupHubServer ${SOURCE_FILES})
-target_link_libraries(GroupHubServer PRIVATE uv_a nlohmann_json::nlohmann_json)
+target_link_libraries(GroupHubServer PRIVATE libuv::uv_a nlohmann_json::nlohmann_json)
 
 set(SOURCE_FILES
 	GroupOnlyHub/tcpclient.cpp
@@ -34,7 +34,7 @@ set(SOURCE_FILES
 	GroupOnlyHub/GroupMsg.cpp)
 
 add_executable(GroupHubClient ${SOURCE_FILES})
-target_link_libraries(GroupHubClient PRIVATE imgui-dx11 d3d11 uv_a nlohmann_json::nlohmann_json)
+target_link_libraries(GroupHubClient PRIVATE imgui-dx11 d3d11 libuv::uv_a nlohmann_json::nlohmann_json)
 
 add_executable(Win32Dx11Example win32_dx11_example.cpp)
 target_link_libraries(Win32Dx11Example PRIVATE imgui-dx11 d3d11)

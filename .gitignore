@@ -6,8 +6,13 @@
 *.o
 *.so
 
-build
-Data
-.cache
 
-__pycache__
+/lib/
+/lib64/
+build/
+Data/
+.*/
+__pycache__/
+/3rdparty/BUILD_*/
+
+imgui.ini

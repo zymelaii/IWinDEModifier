@@ -145,7 +145,6 @@ public:
 	}
 };
 
-#include <windows.ai.machinelearning.h>
 int main(int argc, char* argv[]) {
 	GroupOnlyHub hub;
 	if (argc > 1) hub.login_as(argv[1]);

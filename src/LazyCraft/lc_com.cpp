@@ -106,7 +106,7 @@ bool LazyCraft::IQuickLaunch() {
 
 	if (pressed) {
 		std::thread(
-			[](const wchar_t* prog, const wchar_t *workdir) {
+			[](const wchar_t* prog, const wchar_t* workdir) {
 				STARTUPINFOW		startinfo{};
 				PROCESS_INFORMATION procinfo{};
 				startinfo.cb = sizeof(STARTUPINFOW);
@@ -122,7 +122,8 @@ bool LazyCraft::IQuickLaunch() {
 							   &procinfo);
 				WaitForInputIdle(procinfo.hProcess, INFINITE);
 			},
-			execpath.c_str(), workdir.c_str())
+			execpath.c_str(),
+			workdir.c_str())
 			.detach();
 	}
 

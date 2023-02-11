@@ -9,6 +9,9 @@ set(CMAKE_DEBUG_POSTFIX "d")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/lib)
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/lib64)
+
 option(BUILD_DesktopTab "build utils/DesktopTab" ON)
 option(BUILD_iwdesh "build utils/iwdesh" ON)
 option(BUILD_LazyCraft "build utils/LazyCraft" ON)
